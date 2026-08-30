@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: steh
+      POSTGRES_USER: steh
+      POSTGRES_PASSWORD: steh
+    ports:
+      - "5432:5432"
+    volumes:
+      - steh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steh -d steh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://steh:steh@postgres:5432/steh
+      LANGGRAPH_DATABASE_URL: postgresql://steh:steh@postgres:5432/steh?sslmode=disable
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  steh_postgres_data:
+
+  scanner:
+    build:
+      context: .
+      dockerfile: scanner.Dockerfile
+    image: steh-scanner:0.5.1
+    profiles: ["build-only"]
+    command: ["semgrep", "--version"]

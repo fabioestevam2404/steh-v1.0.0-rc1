@@ -1,0 +1,24 @@
+version: "0.5.1"
+
+runner:
+  mode: "docker"
+  image: "steh-scanner:0.5.1"
+  network: "none"
+  read_only_rootfs: true
+  workspace_mount: "ro"
+  timeout_seconds: 60
+  memory_mb: 512
+  cpus: 1.0
+  pids_limit: 128
+
+rework:
+  max_attempts: 2
+  automatic: false
+
+scanners:
+  semgrep:
+    enabled: true
+  gitleaks:
+    enabled: true
+  trivy:
+    enabled: true

@@ -1,0 +1,24 @@
+version: "0.4"
+
+capabilities:
+  workspace:
+    root: "/tmp/steh-workspaces"
+    allow_create_files: true
+    allow_modify_files: true
+    allow_delete_files: false
+    allow_path_escape: false
+
+  process:
+    allow_shell: false
+    allow_subprocess: false
+
+  network:
+    allow_outbound: false
+
+  host:
+    allow_host_filesystem: false
+    allow_environment_secrets: false
+
+limits:
+  max_files_per_task: 25
+  max_file_bytes: 200000

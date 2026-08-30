@@ -1,0 +1,52 @@
+version: "0.3"
+
+rules:
+  - id: AUDIT-001
+    description: "Every workflow execution must produce evidence"
+    check: "evidence_present"
+    action: "BLOCK"
+
+  - id: REQ-001
+    description: "Requirements artifact must exist"
+    check: "requirements_present"
+    action: "BLOCK"
+
+  - id: ARCH-001
+    description: "Architecture artifact must exist before security review"
+    check: "architecture_present"
+    action: "BLOCK"
+
+  - id: SEC-001
+    description: "Critical security findings are prohibited"
+    check: "no_critical_security_findings"
+    action: "BLOCK"
+
+  - id: SEC-002
+    description: "High security findings require review"
+    check: "no_high_security_findings"
+    action: "HUMAN_REVIEW"
+
+  - id: SEC-003
+    description: "Threat model must exist"
+    check: "threat_model_present"
+    action: "BLOCK"
+
+  - id: SEC-004
+    description: "Security requirements must exist"
+    check: "security_requirements_present"
+    action: "BLOCK"
+
+  - id: IMPL-001
+    description: "Implementation artifact must exist after implementation"
+    check: "implementation_present"
+    action: "BLOCK"
+
+  - id: TEST-001
+    description: "Generated implementation must pass controlled tests"
+    check: "tests_passed"
+    action: "REWORK"
+
+  - id: SCAN-001
+    description: "Generated implementation must have no high or critical scanner findings"
+    check: "scanners_passed"
+    action: "REWORK"

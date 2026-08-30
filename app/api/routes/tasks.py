@@ -1,0 +1,247 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.db.models import TaskRecord
+from app.core.auth import Principal, get_principal
+from app.db.session import get_db
+from app.models.contracts import TaskCreate, TaskResponse, ids
+from app.services.audit import get_task_audit, record_event
+from app.services.security import get_security_findings
+from app.services.tasks import execute_task
+
+router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"], dependencies=[Depends(get_principal)])
+
+
+def _response(record: TaskRecord) -> TaskResponse:
+    return TaskResponse(
+        task_id=record.task_id,
+        trace_id=record.trace_id,
+        status=record.status,
+        requirements=record.requirements,
+        architecture=record.architecture,
+        security_review=record.security_review,
+        risk_level=record.risk_level,
+        implementation=record.implementation,
+        validation=record.validation,
+        rework_count=record.rework_count,
+        external_scan=record.external_scan,
+        rework_decision=record.rework_decision,
+        created_at=record.created_at,
+    )
+
+
+@router.post(
+    "",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_task(
+    payload: TaskCreate,
+    db: Session = Depends(get_db),
+) -> TaskResponse:
+    task_id, trace_id = ids()
+
+    record = TaskRecord(
+        task_id=task_id,
+        trace_id=trace_id,
+        request=payload.request,
+        status="CREATED",
+    )
+    db.add(record)
+    db.commit()
+
+    record_event(
+        db,
+        task_id,
+        trace_id,
+        "TASK_CREATED",
+        "api",
+        {},
+    )
+
+    try:
+        completed = execute_task(
+            db,
+            task_id,
+            trace_id,
+            payload,
+        )
+        return _response(completed)
+
+    except Exception:
+        record.status = "FAILED"
+        db.commit()
+
+        record_event(
+            db,
+            task_id,
+            trace_id,
+            "TASK_FAILED",
+            "api",
+            {},
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Task execution failed.",
+        )
+
+
+@router.get(
+    "/{task_id}",
+    response_model=TaskResponse,
+)
+def get_task(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+) -> TaskResponse:
+    record = db.get(TaskRecord, task_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    return _response(record)
+
+
+@router.get("/{task_id}/audit")
+def audit_task(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict:
+    record = db.get(TaskRecord, task_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+
+    runs, events = get_task_audit(db, task_id)
+
+    return {
+        "task_id": str(task_id),
+        "trace_id": str(record.trace_id),
+        "agent_runs": [
+            {
+                "run_id": str(run.run_id),
+                "agent_name": run.agent_name,
+                "status": run.status,
+                "result": run.result,
+                "findings": run.findings,
+                "evidence": run.evidence,
+                "confidence": run.confidence,
+                "started_at": run.started_at,
+                "completed_at": run.completed_at,
+            }
+            for run in runs
+        ],
+        "events": [
+            {
+                "event_id": str(event.event_id),
+                "event_type": event.event_type,
+                "actor": event.actor,
+                "payload": event.payload,
+                "created_at": event.created_at,
+            }
+            for event in events
+        ],
+    }
+
+
+@router.get("/{task_id}/security")
+def security_task(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict:
+    record = db.get(TaskRecord, task_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+
+    findings = get_security_findings(db, task_id)
+
+    return {
+        "task_id": str(task_id),
+        "trace_id": str(record.trace_id),
+        "risk_level": record.risk_level,
+        "security_review": record.security_review,
+        "findings": [
+            {
+                "finding_id": str(f.finding_id),
+                "severity": f.severity,
+                "category": f.category,
+                "title": f.title,
+                "description": f.description,
+                "affected_component": f.affected_component,
+                "threat": f.threat,
+                "recommendation": f.recommendation,
+                "evidence": f.evidence,
+                "status": f.status,
+                "created_at": f.created_at,
+            }
+            for f in findings
+        ],
+    }
+
+@router.post("/{task_id}/external-validation")
+def external_validation(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.services.external_validation import ExternalValidationService
+    from app.orchestration.rework import ReworkController
+
+    record = db.get(TaskRecord, task_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if not record.implementation:
+        raise HTTPException(status_code=409, detail="No implementation artifact.")
+
+    try:
+        evidence = ExternalValidationService().run(str(task_id))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"External validation unavailable: {type(exc).__name__}",
+        ) from exc
+
+    serialized = [item.model_dump(mode="json") for item in evidence]
+    reasons = []
+    for item in serialized:
+        if not item["success"]:
+            reasons.append(f'{item["scanner"]}: scanner execution failed')
+        for finding in item["findings"]:
+            if finding.get("severity") in {"HIGH", "CRITICAL"}:
+                reasons.append(
+                    f'{item["scanner"]}: {finding.get("rule_id", "finding")}'
+                )
+
+    decision = ReworkController().decide(
+        record.rework_count + 1,
+        reasons,
+    )
+
+    record.external_scan = serialized
+    record.rework_decision = decision.model_dump(mode="json")
+    record.rework_count = decision.attempt
+    if decision.exhausted:
+        record.status = "BLOCKED"
+    elif decision.required:
+        record.status = "REWORK_REQUIRED"
+    else:
+        record.status = "COMPLETED"
+    db.commit()
+
+    record_event(
+        db,
+        task_id,
+        record.trace_id,
+        "EXTERNAL_VALIDATION_COMPLETED",
+        "scanner_suite",
+        {
+            "decision": record.rework_decision,
+            "scanner_count": len(serialized),
+        },
+    )
+
+    return {
+        "task_id": str(task_id),
+        "status": record.status,
+        "external_scan": serialized,
+        "rework_decision": record.rework_decision,
+    }
