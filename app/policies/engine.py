@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +14,7 @@ class PolicyDecision:
 
 
 def _severity_count(
-    context: dict[str, Any],
+    context: Mapping[str, Any],
     severity: str,
 ) -> int:
     review = context.get("security_review") or {}
@@ -29,7 +30,7 @@ def _severity_count(
 
 def _check(
     rule: PolicyRule,
-    context: dict[str, Any],
+    context: Mapping[str, Any],
 ) -> bool:
     security_review = context.get("security_review") or {}
     threat_model = security_review.get("threat_model") or {}
@@ -101,7 +102,7 @@ class PolicyEngine:
     def evaluate(
         self,
         policy_id: str,
-        context: dict[str, Any],
+        context: Mapping[str, Any],
     ) -> PolicyDecision:
         rule = next(
             (

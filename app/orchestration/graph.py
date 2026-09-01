@@ -1,4 +1,8 @@
+from typing import Any
+
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.agents.architecture import ArchitectureAgent
 from app.agents.implementation import ImplementationAgent
@@ -6,13 +10,26 @@ from app.agents.requirements import RequirementsAgent
 from app.agents.security import SecurityAgent
 from app.agents.test_engineer import TestAgent
 from app.core.config import settings
+from app.models.contracts import AgentResult
 from app.models.state import EngineeringState
 from app.orchestration.checkpoint import get_checkpointer
+from app.orchestration.lifecycle import AgentLifecycle
 from app.policies.engine import PolicyEngine
 from app.policies.loader import load_policy_config
 
+StateUpdate = EngineeringState
+Workflow = CompiledStateGraph[
+    EngineeringState,
+    None,
+    EngineeringState,
+    EngineeringState,
+]
 
-def build_graph(lifecycle=None):
+
+def build_graph(
+    lifecycle: AgentLifecycle | None = None,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
+) -> Workflow:
     requirements_agent = RequirementsAgent(
         settings.llm_mode,
         settings.llm_model,
@@ -43,8 +60,8 @@ def build_graph(lifecycle=None):
         load_policy_config(settings.policy_file)
     )
 
-    def requirements(state: EngineeringState) -> dict:
-        def call():
+    def requirements(state: EngineeringState) -> StateUpdate:
+        def call() -> AgentResult:
             return requirements_agent.run(
                 state["user_request"]
             )
@@ -67,7 +84,7 @@ def build_graph(lifecycle=None):
 
     def requirements_gate(
         state: EngineeringState,
-    ) -> dict:
+    ) -> StateUpdate:
         decisions = [
             policy_engine.evaluate(
                 "REQ-001",
@@ -95,8 +112,8 @@ def build_graph(lifecycle=None):
 
     def architecture(
         state: EngineeringState,
-    ) -> dict:
-        def call():
+    ) -> StateUpdate:
+        def call() -> AgentResult:
             return architecture_agent.run(
                 state["requirements"]
             )
@@ -122,7 +139,7 @@ def build_graph(lifecycle=None):
 
     def architecture_gate(
         state: EngineeringState,
-    ) -> dict:
+    ) -> StateUpdate:
         decision = policy_engine.evaluate(
             "ARCH-001",
             state,
@@ -141,8 +158,8 @@ def build_graph(lifecycle=None):
 
     def security(
         state: EngineeringState,
-    ) -> dict:
-        def call():
+    ) -> StateUpdate:
+        def call() -> AgentResult:
             return security_agent.run(
                 state["requirements"],
                 state["architecture"],
@@ -172,7 +189,7 @@ def build_graph(lifecycle=None):
 
     def security_gate(
         state: EngineeringState,
-    ) -> dict:
+    ) -> StateUpdate:
         decisions = [
             policy_engine.evaluate(
                 "SEC-001",
@@ -238,8 +255,8 @@ def build_graph(lifecycle=None):
 
     def implementation(
         state: EngineeringState,
-    ) -> dict:
-        def call():
+    ) -> StateUpdate:
+        def call() -> AgentResult:
             return implementation_agent.run(
                 state["task_id"],
                 state["requirements"],
@@ -268,7 +285,7 @@ def build_graph(lifecycle=None):
 
     def implementation_gate(
         state: EngineeringState,
-    ) -> dict:
+    ) -> StateUpdate:
         decision = policy_engine.evaluate(
             "IMPL-001",
             state,
@@ -292,8 +309,8 @@ def build_graph(lifecycle=None):
 
     def validation(
         state: EngineeringState,
-    ) -> dict:
-        def call():
+    ) -> StateUpdate:
+        def call() -> AgentResult:
             return test_agent.run(
                 state["task_id"],
                 state["implementation"],
@@ -320,7 +337,7 @@ def build_graph(lifecycle=None):
 
     def validation_gate(
         state: EngineeringState,
-    ) -> dict:
+    ) -> StateUpdate:
         decisions = [
             policy_engine.evaluate(
                 "TEST-001",
@@ -377,12 +394,12 @@ def build_graph(lifecycle=None):
             else "security"
         )
 
-    def blocked(_: EngineeringState) -> dict:
-        return {
-            "status": "BLOCKED",
-        }
-
-    builder = StateGraph(EngineeringState)
+    builder = StateGraph[
+        EngineeringState,
+        None,
+        EngineeringState,
+        EngineeringState,
+    ](EngineeringState)
 
     builder.add_node(
         "requirements",
@@ -436,7 +453,7 @@ def build_graph(lifecycle=None):
 
     builder.add_node(
         "blocked",
-        blocked,
+        lambda _: {"status": "BLOCKED"},
     )
 
     builder.add_edge(
@@ -512,5 +529,5 @@ def build_graph(lifecycle=None):
     )
 
     return builder.compile(
-        checkpointer=get_checkpointer()
+        checkpointer=checkpointer or get_checkpointer()
     )
