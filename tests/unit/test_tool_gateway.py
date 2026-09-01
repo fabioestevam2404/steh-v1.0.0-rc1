@@ -1,5 +1,7 @@
 import pytest
+
 from app.tools.gateway import CapabilityViolation, ToolGateway
+
 
 def test_gateway_rejects_path_escape(tmp_path) -> None:
     gateway = ToolGateway()

@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class EngineeringState(TypedDict, total=False):
@@ -7,23 +7,23 @@ class EngineeringState(TypedDict, total=False):
     user_request: str
     status: str
 
-    requirements: dict
-    requirements_run: dict
+    requirements: dict[str, Any]
+    requirements_run: dict[str, Any]
 
-    architecture: dict
-    architecture_run: dict
+    architecture: dict[str, Any]
+    architecture_run: dict[str, Any]
 
-    security_review: dict
-    security_run: dict
+    security_review: dict[str, Any]
+    security_run: dict[str, Any]
     risk_level: str
 
-    implementation: dict
-    implementation_run: dict
+    implementation: dict[str, Any]
+    implementation_run: dict[str, Any]
 
-    validation: dict
-    test_run: dict
+    validation: dict[str, Any]
+    test_run: dict[str, Any]
     rework_count: int
 
-    evidence: list[dict]
-    policy_results: list[dict]
+    evidence: list[dict[str, Any]]
+    policy_results: list[dict[str, Any]]
     blocked: bool

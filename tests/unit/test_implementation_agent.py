@@ -1,6 +1,7 @@
 from app.agents.implementation import ImplementationAgent
 from app.tools.gateway import ToolGateway
 
+
 def test_stub_implementation_writes_only_workspace(tmp_path) -> None:
     gateway = ToolGateway()
     gateway.root = tmp_path

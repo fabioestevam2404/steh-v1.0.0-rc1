@@ -19,7 +19,7 @@ dependencies = [
     "langgraph-checkpoint-postgres>=3.0,<4.0",
     "langchain-openai>=1.0,<2.0",
     "PyYAML>=6.0,<7.0",
-  "PyJWT>=2.9,<3.0",
+    "PyJWT>=2.9,<3.0",
     "alembic>=1.14,<2.0",
 ]
 
@@ -30,6 +30,7 @@ dev = [
     "httpx>=0.28,<1.0",
     "ruff>=0.9,<1.0",
     "mypy>=1.14,<2.0",
+    "types-PyYAML>=6.0,<7.0",
 ]
 
 [tool.hatch.build.targets.wheel]

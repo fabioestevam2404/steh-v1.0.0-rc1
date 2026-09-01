@@ -1,6 +1,7 @@
 from app.tools.gateway import ToolGateway
 from app.tools.validator import ControlledValidator
 
+
 def validator(tmp_path):
     gateway=ToolGateway()
     gateway.root=tmp_path

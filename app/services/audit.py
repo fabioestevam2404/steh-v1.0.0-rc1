@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -13,7 +14,7 @@ def record_event(
     trace_id: UUID,
     event_type: str,
     actor: str,
-    payload: dict,
+    payload: dict[str, Any],
 ) -> AuditEventRecord:
     event = AuditEventRecord(
         task_id=task_id,
@@ -44,7 +45,7 @@ def start_agent_run(
         findings=[],
         evidence=[],
         confidence=0.0,
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         completed_at=None,
     )
     db.add(run)
@@ -66,15 +67,15 @@ def start_agent_run(
 def complete_agent_run(
     db: Session,
     run: AgentRunRecord,
-    result: dict,
-    evidence: list[dict],
+    result: dict[str, Any],
+    evidence: list[dict[str, Any]],
     confidence: float,
 ) -> None:
     run.status = "SUCCEEDED"
     run.result = result
     run.evidence = evidence
     run.confidence = confidence
-    run.completed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(UTC)
 
     db.commit()
 
@@ -94,7 +95,7 @@ def fail_agent_run(
     error_type: str,
 ) -> None:
     run.status = "FAILED"
-    run.completed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(UTC)
 
     db.commit()
 

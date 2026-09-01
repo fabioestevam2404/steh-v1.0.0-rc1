@@ -1,9 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 import jwt
 import pytest
 from fastapi import HTTPException
 
 from app.core import auth
+
 
 def test_local_mode_returns_development_principal(monkeypatch):
     monkeypatch.setattr(auth.settings, "auth_enabled", False)
@@ -20,7 +22,7 @@ def test_role_is_required(monkeypatch):
     monkeypatch.setattr(auth.settings, "auth_enabled", True)
     monkeypatch.setattr(auth.settings, "auth_jwt_secret", "test-secret")
     token=jwt.encode(
-        {"sub":"user","roles":["reader"],"exp":datetime.now(timezone.utc)+timedelta(minutes=5)},
+        {"sub":"user","roles":["reader"],"exp":datetime.now(UTC)+timedelta(minutes=5)},
         "test-secret", algorithm="HS256"
     )
     with pytest.raises(HTTPException) as exc:

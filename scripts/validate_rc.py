@@ -1,4 +1,5 @@
-import subprocess, sys
+import subprocess
+import sys
 
 checks = [
     ("ruff", ["ruff","check","."]),

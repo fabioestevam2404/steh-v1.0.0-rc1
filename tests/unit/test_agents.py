@@ -1,5 +1,6 @@
-from app.agents.requirements import RequirementsAgent
 from app.agents.architecture import ArchitectureAgent
+from app.agents.requirements import RequirementsAgent
+
 
 def test_agents_stub():
     req = RequirementsAgent("stub","test").run("Crie uma API segura para clientes.")

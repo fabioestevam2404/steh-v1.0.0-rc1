@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Header, HTTPException, status
 
 from app.core.config import settings
 

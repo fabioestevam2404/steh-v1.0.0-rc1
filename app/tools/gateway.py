@@ -1,10 +1,9 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 import yaml
 
 from app.models.implementation import ToolExecutionResult
-
 
 _SAFE_PATH = re.compile(r"^[A-Za-z0-9_./-]+$")
 

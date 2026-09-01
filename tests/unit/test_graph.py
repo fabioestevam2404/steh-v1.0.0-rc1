@@ -1,5 +1,6 @@
 from app.orchestration.graph import build_graph
 
+
 def test_high_security_risk_prevents_implementation() -> None:
     graph = build_graph()
     result = graph.invoke(
