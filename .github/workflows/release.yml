@@ -2,13 +2,15 @@ name: STEH Release Validation
 
 on:
   push:
-    tags:
-      - "v*-alpha"
+    tags: ["v*-alpha*", "v*-rc*"]
+
+permissions:
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-alpine
@@ -16,40 +18,37 @@ jobs:
           POSTGRES_DB: steh
           POSTGRES_USER: steh
           POSTGRES_PASSWORD: steh
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U steh -d steh"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg://steh:steh@localhost:5432/steh
       LANGGRAPH_DATABASE_URL: postgresql://steh:steh@localhost:5432/steh?sslmode=disable
       LLM_MODE: stub
       LLM_MODEL: test
       POLICY_FILE: policies/quality-gates.yaml
-
+      AUTH_ENABLED: "false"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-
+          cache: pip
       - name: Install
         run: |
           python -m pip install --upgrade pip
           pip install ".[dev]"
-
-      - name: Migrations
-        run: alembic upgrade head
-
-      - name: Lint
-        run: ruff check .
-
-      - name: Type check
-        run: mypy app
-
-      - name: Test
-        run: pytest -q
+      - name: Validate release and generate evidence
+        run: >-
+          python scripts/validate_rc.py
+          --allow-database-reset
+          --output artifacts/release-validation-evidence.json
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-validation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/release-validation-evidence.json
+          if-no-files-found: error
+          retention-days: 90
