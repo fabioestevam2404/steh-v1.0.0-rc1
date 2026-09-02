@@ -21,6 +21,7 @@ def test_security_layer_end_to_end() -> None:
 
         payload = created.json()
         assert payload["requirements"]
+        assert payload["specification"]
         assert payload["architecture"]
         assert payload["security_review"]
         assert payload["risk_level"] == "HIGH"
@@ -48,7 +49,17 @@ def test_security_layer_end_to_end() -> None:
         assert audit.status_code == 200
         audit_payload = audit.json()
 
-        assert len(audit_payload["agent_runs"]) == 3
+        agent_names = {
+            run["agent_name"]
+            for run in audit_payload["agent_runs"]
+        }
+
+        assert agent_names == {
+            "requirements_agent",
+            "specification_agent",
+            "architecture_agent",
+            "security_agent",
+        }
 
         event_types = {
             event["event_type"]
