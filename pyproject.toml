@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steh"
-version = "1.0.0rc1"
-description = "Software Trust Engineering Harness - Alpha 0.2.1 Hardening"
+version = "1.0.0rc2"
+description = "Software Trust Engineering Harness - MVP Release Candidate"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -7,7 +7,7 @@ def test_health_reports_application_version() -> None:
     response = health()
 
     assert response["status"] == "ok"
-    assert response["version"] == "1.0.0-rc1"
+    assert response["version"] == "1.0.0-rc2"
 
 
 @pytest.mark.integration
