@@ -21,9 +21,11 @@ def test_full_task_workflow() -> None:
 
         payload = create.json()
 
-        assert payload["status"] == "COMPLETED"
+        assert payload["status"] == "HUMAN_REVIEW"
         assert payload["requirements"]
         assert payload["architecture"]
+        assert payload["security_review"]
+        assert payload["risk_level"]
 
         task_id = payload["task_id"]
 
@@ -35,7 +37,14 @@ def test_full_task_workflow() -> None:
 
         audit_payload = audit.json()
 
-        assert len(audit_payload["agent_runs"]) == 2
+        agent_names = {
+            run["agent_name"]
+            for run in audit_payload["agent_runs"]
+        }
+
+        assert "requirements_agent" in agent_names
+        assert "architecture_agent" in agent_names
+        assert "security_agent" in agent_names
 
         event_types = {
             event["event_type"]
@@ -45,4 +54,4 @@ def test_full_task_workflow() -> None:
         assert "AGENT_STARTED" in event_types
         assert "AGENT_SUCCEEDED" in event_types
         assert "POLICY_DECISION" in event_types
-        assert "TASK_COMPLETED" in event_types
+        assert "TASK_HUMAN_REVIEW" in event_types

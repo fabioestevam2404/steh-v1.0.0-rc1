@@ -5,7 +5,6 @@ from pathlib import Path
 from app.models.validation import ScanFinding, TestEvidence, ValidationStatus
 from app.tools.gateway import ToolGateway
 
-
 _SECRET_PATTERNS = [
     ("SECRET-001", re.compile(r"(?i)(api[_-]?key|password|secret)\s*=\s*['\"][^'\"]+['\"]")),
     ("SECRET-002", re.compile(r"sk-[A-Za-z0-9]{16,}")),

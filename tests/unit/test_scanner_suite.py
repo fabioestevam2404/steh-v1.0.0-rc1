@@ -1,6 +1,7 @@
 from app.tools.process_runner import ProcessResult
 from app.tools.scanners import ScannerSuite
 
+
 class FakeRunner:
     def run_scanner(self, scanner, workspace):
         if scanner == "semgrep":

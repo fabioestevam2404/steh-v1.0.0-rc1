@@ -9,10 +9,7 @@ from app.models.contracts import TaskCreate, TaskStatus, utc_now
 from app.orchestration.graph import build_graph
 from app.orchestration.lifecycle import AgentLifecycle
 from app.services.audit import (
-    complete_agent_run,
-    fail_agent_run,
     record_event,
-    start_agent_run,
 )
 from app.services.security import persist_security_findings
 
@@ -81,32 +78,7 @@ def execute_task(
         record.status = result.get("status", "FAILED")
         record.updated_at = utc_now()
 
-        if result.get("implementation_run"):
-            runs["implementation_agent"] = start_agent_run(
-                db, task_id, trace_id, "implementation_agent"
-            )
-            ir = result["implementation_run"]
-            complete_agent_run(
-                db,
-                runs["implementation_agent"],
-                ir["result"],
-                ir.get("evidence", []),
-                ir.get("confidence", 0.0),
-            )
-
-        if result.get("test_run"):
-            runs["test_agent"] = start_agent_run(
-                db, task_id, trace_id, "test_agent"
-            )
-            tr = result["test_run"]
-            complete_agent_run(
-                db,
-                runs["test_agent"],
-                tr["result"],
-                tr.get("evidence", []),
-                tr.get("confidence", 0.0),
-            )
-
+        
         if record.security_review:
             persist_security_findings(
                 db,
@@ -163,7 +135,7 @@ def execute_task(
 
         return record
 
-    except Exception as exc:
+    except Exception:
         logger.exception(
             "workflow_failed",
             extra={

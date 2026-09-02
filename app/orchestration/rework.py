@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import yaml
 
 from app.models.scanning import ReworkDecision

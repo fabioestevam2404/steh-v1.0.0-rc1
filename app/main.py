@@ -1,11 +1,11 @@
-app.include_router(metrics_router)
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.api.routes.health import router as health_router
-from app.api.routes.tasks import router as tasks_router
 from app.api.routes.metrics import router as metrics_router
+from app.api.routes.tasks import router as tasks_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.orchestration.checkpoint import (
@@ -15,7 +15,7 @@ from app.orchestration.checkpoint import (
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings.log_level)
     init_checkpointer()
     yield
@@ -30,3 +30,4 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(tasks_router)
+app.include_router(metrics_router)

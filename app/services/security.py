@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,7 +11,7 @@ def persist_security_findings(
     db: Session,
     task_id: UUID,
     trace_id: UUID,
-    findings: list[dict],
+    findings: list[dict[str, Any]],
 ) -> None:
     for finding in findings:
         db.add(
@@ -29,6 +30,7 @@ def persist_security_findings(
                 status=finding.get("status", "OPEN"),
             )
         )
+
     db.commit()
 
 

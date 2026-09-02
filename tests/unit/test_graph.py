@@ -1,7 +1,10 @@
+from langgraph.checkpoint.memory import MemorySaver
+
 from app.orchestration.graph import build_graph
 
+
 def test_high_security_risk_prevents_implementation() -> None:
-    graph = build_graph()
+    graph = build_graph(checkpointer=MemorySaver())
     result = graph.invoke(
         {
             "task_id": "test-task-alpha04",

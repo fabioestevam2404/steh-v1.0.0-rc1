@@ -32,7 +32,10 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # BaseSettings resolves required values such as database_url and
+    # langgraph_database_url from environment variables / .env at runtime.
+    # Static type checking cannot infer that configuration injection.
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()

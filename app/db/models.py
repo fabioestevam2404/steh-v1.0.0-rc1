@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, JSON, String, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -17,23 +18,23 @@ class TaskRecord(Base):
     request: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32), index=True)
 
-    requirements: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    architecture: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    security_review: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    requirements: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    architecture: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    security_review: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     risk_level: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
-    implementation: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    validation: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    implementation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    validation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     rework_count: Mapped[int] = mapped_column(default=0)
-    external_scan: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    rework_decision: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    external_scan: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    rework_decision: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -50,14 +51,14 @@ class AgentRunRecord(Base):
     agent_name: Mapped[str] = mapped_column(String(100), index=True)
     status: Mapped[str] = mapped_column(String(32), index=True)
 
-    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    findings: Mapped[list] = mapped_column(JSON, default=list)
-    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    findings: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
 
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -77,11 +78,11 @@ class AuditEventRecord(Base):
 
     event_type: Mapped[str] = mapped_column(String(120), index=True)
     actor: Mapped[str] = mapped_column(String(120))
-    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -102,10 +103,10 @@ class SecurityFindingRecord(Base):
     affected_component: Mapped[str] = mapped_column(String(255))
     threat: Mapped[str] = mapped_column(String(100))
     recommendation: Mapped[str] = mapped_column(Text)
-    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(String(32), index=True, default="OPEN")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

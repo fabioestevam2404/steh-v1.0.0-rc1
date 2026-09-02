@@ -1,5 +1,6 @@
 from app.orchestration.rework import ReworkController
 
+
 def test_rework_is_bounded() -> None:
     controller=ReworkController()
     first=controller.decide(1,["high finding"])

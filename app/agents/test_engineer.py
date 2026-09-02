@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 from app.models.contracts import AgentResult
 from app.models.validation import ValidationResult, ValidationStatus
@@ -6,10 +7,19 @@ from app.tools.validator import ControlledValidator
 
 
 class TestAgent:
-    def __init__(self, validator: ControlledValidator | None = None) -> None:
+    __test__ = False
+
+    def __init__(
+        self,
+        validator: ControlledValidator | None = None,
+    ) -> None:
         self.validator = validator or ControlledValidator()
 
-    def run(self, task_id: str, implementation: dict) -> AgentResult:
+    def run(
+        self,
+        task_id: str,
+        implementation: dict[str, Any],
+    ) -> AgentResult:
         tests = self.validator.syntax_tests(task_id)
         findings = [
             *self.validator.secret_scan(task_id),
@@ -17,11 +27,20 @@ class TestAgent:
         ]
 
         test_passed = all(
-            item.status in {ValidationStatus.PASS, ValidationStatus.SKIPPED}
+            item.status
+            in {
+                ValidationStatus.PASS,
+                ValidationStatus.SKIPPED,
+            }
             for item in tests
         )
+
         scanners_passed = not any(
-            item.severity in {"CRITICAL", "HIGH"}
+            item.severity
+            in {
+                "CRITICAL",
+                "HIGH",
+            }
             for item in findings
         )
 
@@ -40,13 +59,24 @@ class TestAgent:
         return AgentResult(
             agent="test_agent",
             status="SUCCESS",
-            result=result.model_dump(mode="json"),
-            findings=[x.model_dump(mode="json") for x in findings],
-            evidence=[{
-                "type": "validation_evidence",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "test_count": len(tests),
-                "scan_finding_count": len(findings),
-            }],
+            result=result.model_dump(
+                mode="json"
+            ),
+            findings=[
+                item.model_dump(
+                    mode="json"
+                )
+                for item in findings
+            ],
+            evidence=[
+                {
+                    "type": "validation_evidence",
+                    "timestamp": datetime.now(
+                        UTC
+                    ).isoformat(),
+                    "test_count": len(tests),
+                    "scan_finding_count": len(findings),
+                }
+            ],
             confidence=1.0,
         )

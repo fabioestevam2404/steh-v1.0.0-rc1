@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
+from typing import Any
 
 from app.models.scanning import ScannerEvidence
-from app.tools.process_runner import ContainerProcessRunner
+from app.tools.process_runner import ContainerProcessRunner, ProcessResult
 
 
 class ScannerSuite:
@@ -12,38 +13,80 @@ class ScannerSuite:
     ) -> None:
         self.runner = runner or ContainerProcessRunner()
 
-    def _normalize(self, scanner: str, result) -> ScannerEvidence:
-        findings: list[dict] = []
-        error = None
+    def _normalize(
+        self,
+        scanner: str,
+        result: ProcessResult,
+    ) -> ScannerEvidence:
+        findings: list[dict[str, Any]] = []
+        error: str | None = None
 
         if result.stdout.strip():
             try:
                 payload = json.loads(result.stdout)
+
                 if scanner == "semgrep":
                     findings = payload.get("results", [])
+
                 elif scanner == "trivy":
                     for target in payload.get("Results", []) or []:
                         for vuln in target.get("Vulnerabilities", []) or []:
-                            findings.append({
-                                "severity": vuln.get("Severity", "UNKNOWN"),
-                                "rule_id": vuln.get("VulnerabilityID", "TRIVY"),
-                                "path": target.get("Target", ""),
-                                "message": vuln.get("Title") or vuln.get("Description", ""),
-                            })
+                            findings.append(
+                                {
+                                    "severity": vuln.get(
+                                        "Severity",
+                                        "UNKNOWN",
+                                    ),
+                                    "rule_id": vuln.get(
+                                        "VulnerabilityID",
+                                        "TRIVY",
+                                    ),
+                                    "path": target.get(
+                                        "Target",
+                                        "",
+                                    ),
+                                    "message": vuln.get(
+                                        "Title"
+                                    )
+                                    or vuln.get(
+                                        "Description",
+                                        "",
+                                    ),
+                                }
+                            )
+
                         for secret in target.get("Secrets", []) or []:
-                            findings.append({
-                                "severity": secret.get("Severity", "HIGH"),
-                                "rule_id": secret.get("RuleID", "TRIVY-SECRET"),
-                                "path": target.get("Target", ""),
-                                "message": secret.get("Title", "Secret detected"),
-                            })
+                            findings.append(
+                                {
+                                    "severity": secret.get(
+                                        "Severity",
+                                        "HIGH",
+                                    ),
+                                    "rule_id": secret.get(
+                                        "RuleID",
+                                        "TRIVY-SECRET",
+                                    ),
+                                    "path": target.get(
+                                        "Target",
+                                        "",
+                                    ),
+                                    "message": secret.get(
+                                        "Title",
+                                        "Secret detected",
+                                    ),
+                                }
+                            )
+
             except json.JSONDecodeError:
                 error = "Scanner returned malformed JSON."
 
         # Gitleaks writes report to container /tmp in this alpha image contract.
         # A non-zero result is preserved as evidence even if no JSON is available.
         if not result.success and not error:
-            error = result.stderr[-2000:] or f"{scanner} returned non-zero exit code."
+            error = (
+                result.stderr[-2000:]
+                or f"{scanner} returned non-zero exit code."
+            )
 
         return ScannerEvidence(
             scanner=scanner,
@@ -54,9 +97,26 @@ class ScannerSuite:
             error=error,
         )
 
-    def run_all(self, workspace: Path) -> list[ScannerEvidence]:
-        evidence = []
-        for scanner in ("semgrep", "gitleaks", "trivy"):
-            result = self.runner.run_scanner(scanner, workspace)
-            evidence.append(self._normalize(scanner, result))
+    def run_all(
+        self,
+        workspace: Path,
+    ) -> list[ScannerEvidence]:
+        evidence: list[ScannerEvidence] = []
+
+        for scanner in (
+            "semgrep",
+            "gitleaks",
+            "trivy",
+        ):
+            result = self.runner.run_scanner(
+                scanner,
+                workspace,
+            )
+            evidence.append(
+                self._normalize(
+                    scanner,
+                    result,
+                )
+            )
+
         return evidence
