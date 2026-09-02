@@ -8,7 +8,9 @@ from app.agents.architecture import ArchitectureAgent
 from app.agents.implementation import ImplementationAgent
 from app.agents.requirements import RequirementsAgent
 from app.agents.security import SecurityAgent
+from app.agents.specification import SpecificationAgent
 from app.agents.test_engineer import TestAgent
+from app.agents.test_planning import TestPlanningAgent
 from app.core.config import settings
 from app.models.contracts import AgentResult
 from app.models.state import EngineeringState
@@ -42,6 +44,10 @@ def build_graph(
         settings.openai_api_key,
     )
 
+    specification_agent = SpecificationAgent(
+        settings.llm_mode, settings.llm_model, settings.openai_api_key
+    )
+
     security_agent = SecurityAgent(
         settings.llm_mode,
         settings.llm_model,
@@ -55,6 +61,9 @@ def build_graph(
     )
 
     test_agent = TestAgent()
+    test_planning_agent = TestPlanningAgent(
+        settings.llm_mode, settings.llm_model, settings.openai_api_key
+    )
 
     policy_engine = PolicyEngine(
         load_policy_config(settings.policy_file)
@@ -106,6 +115,32 @@ def build_graph(
             "policy_results": [
                 decision.__dict__
                 for decision in decisions
+            ],
+            "blocked": blocked,
+        }
+
+    def specification(state: EngineeringState) -> StateUpdate:
+        def call() -> AgentResult:
+            return specification_agent.run(state["requirements"])
+
+        result = lifecycle.execute("specification_agent", call) if lifecycle else call()
+        return {
+            "specification": result.result,
+            "specification_run": result.model_dump(),
+            "evidence": [*state.get("evidence", []), *result.evidence],
+            "status": "SPECIFYING",
+        }
+
+    def specification_gate(state: EngineeringState) -> StateUpdate:
+        decisions = [
+            policy_engine.evaluate(policy_id, state)
+            for policy_id in ("SPEC-001", "SPEC-002", "SPEC-003", "TRACE-001")
+        ]
+        blocked = any(not decision.passed for decision in decisions)
+        return {
+            "policy_results": [
+                *state.get("policy_results", []),
+                *[decision.__dict__ for decision in decisions],
             ],
             "blocked": blocked,
         }
@@ -249,9 +284,39 @@ def build_graph(
         status = state.get("status")
 
         if status == "READY_FOR_IMPLEMENTATION":
-            return "implementation"
+            return "test_planning"
 
         return "end"
+
+    def test_planning(state: EngineeringState) -> StateUpdate:
+        def call() -> AgentResult:
+            return test_planning_agent.run(
+                state["specification"],
+                state["architecture"],
+                state["security_review"],
+            )
+
+        result = lifecycle.execute("test_planning_agent", call) if lifecycle else call()
+        return {
+            "test_plan": result.result,
+            "test_plan_run": result.model_dump(),
+            "evidence": [*state.get("evidence", []), *result.evidence],
+            "status": "TEST_PLANNING",
+        }
+
+    def test_plan_gate(state: EngineeringState) -> StateUpdate:
+        decisions = [
+            policy_engine.evaluate(policy_id, state)
+            for policy_id in ("TESTPLAN-001", "TESTPLAN-002", "TESTPLAN-003")
+        ]
+        blocked = any(not decision.passed for decision in decisions)
+        return {
+            "policy_results": [
+                *state.get("policy_results", []),
+                *[decision.__dict__ for decision in decisions],
+            ],
+            "blocked": blocked,
+        }
 
     def implementation(
         state: EngineeringState,
@@ -262,6 +327,7 @@ def build_graph(
                 state["requirements"],
                 state["architecture"],
                 state["security_review"],
+                state["test_plan"],
             )
 
         result = (
@@ -382,8 +448,11 @@ def build_graph(
         return (
             "blocked"
             if state.get("blocked")
-            else "architecture"
+            else "specification"
         )
+
+    def route_after_specification(state: EngineeringState) -> str:
+        return "blocked" if state.get("blocked") else "architecture"
 
     def route_after_architecture(
         state: EngineeringState,
@@ -393,6 +462,9 @@ def build_graph(
             if state.get("blocked")
             else "security"
         )
+
+    def route_after_test_plan(state: EngineeringState) -> str:
+        return "blocked" if state.get("blocked") else "implementation"
 
     builder = StateGraph[
         EngineeringState,
@@ -410,6 +482,9 @@ def build_graph(
         "requirements_gate",
         requirements_gate,
     )
+
+    builder.add_node("specification", specification)
+    builder.add_node("specification_gate", specification_gate)
 
     builder.add_node(
         "architecture",
@@ -430,6 +505,9 @@ def build_graph(
         "security_gate",
         security_gate,
     )
+
+    builder.add_node("test_planning", test_planning)
+    builder.add_node("test_plan_gate", test_plan_gate)
 
     builder.add_node(
         "implementation",
@@ -470,9 +548,16 @@ def build_graph(
         "requirements_gate",
         route_after_requirements,
         {
-            "architecture": "architecture",
+            "specification": "specification",
             "blocked": "blocked",
         },
+    )
+
+    builder.add_edge("specification", "specification_gate")
+    builder.add_conditional_edges(
+        "specification_gate",
+        route_after_specification,
+        {"architecture": "architecture", "blocked": "blocked"},
     )
 
     builder.add_edge(
@@ -498,9 +583,16 @@ def build_graph(
         "security_gate",
         route_after_security,
         {
-            "implementation": "implementation",
+            "test_planning": "test_planning",
             "end": END,
         },
+    )
+
+    builder.add_edge("test_planning", "test_plan_gate")
+    builder.add_conditional_edges(
+        "test_plan_gate",
+        route_after_test_plan,
+        {"implementation": "implementation", "blocked": "blocked"},
     )
 
     builder.add_edge(

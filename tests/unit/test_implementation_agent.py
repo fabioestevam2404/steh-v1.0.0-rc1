@@ -12,6 +12,7 @@ def test_stub_implementation_writes_only_workspace(tmp_path) -> None:
         {"functional_requirements": ["API"]},
         {"components": []},
         {"threat_model": {"security_requirements": ["validate input"]}},
+        {"test_cases": [{"id": "TC-001"}]},
     )
 
     assert result.status == "SUCCESS"

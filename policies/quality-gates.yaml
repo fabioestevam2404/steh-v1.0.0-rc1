@@ -1,4 +1,4 @@
-version: "0.3"
+version: "0.4"
 
 rules:
   - id: AUDIT-001
@@ -14,6 +14,26 @@ rules:
   - id: ARCH-001
     description: "Architecture artifact must exist before security review"
     check: "architecture_present"
+    action: "BLOCK"
+
+  - id: SPEC-001
+    description: "Software specification must exist before architecture"
+    check: "specification_present"
+    action: "BLOCK"
+
+  - id: SPEC-002
+    description: "Specification requirements must have unique stable identifiers"
+    check: "specification_requirements_identified"
+    action: "BLOCK"
+
+  - id: SPEC-003
+    description: "Acceptance scenarios must use Given, When and Then"
+    check: "acceptance_scenarios_structured"
+    action: "BLOCK"
+
+  - id: TRACE-001
+    description: "Every specified requirement must map to acceptance scenarios"
+    check: "requirements_traceable"
     action: "BLOCK"
 
   - id: SEC-001
@@ -39,6 +59,21 @@ rules:
   - id: IMPL-001
     description: "Implementation artifact must exist after implementation"
     check: "implementation_present"
+    action: "BLOCK"
+
+  - id: TESTPLAN-001
+    description: "Test plan must exist before implementation"
+    check: "test_plan_present"
+    action: "BLOCK"
+
+  - id: TESTPLAN-002
+    description: "Test plan must cover every specified requirement"
+    check: "test_plan_covers_requirements"
+    action: "BLOCK"
+
+  - id: TESTPLAN-003
+    description: "Test plan must include negative security coverage"
+    check: "negative_security_tests_present"
     action: "BLOCK"
 
   - id: TEST-001

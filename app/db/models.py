@@ -19,10 +19,12 @@ class TaskRecord(Base):
     status: Mapped[str] = mapped_column(String(32), index=True)
 
     requirements: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    specification: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     architecture: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     security_review: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     risk_level: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
     implementation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    test_plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     validation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     rework_count: Mapped[int] = mapped_column(default=0)
     external_scan: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)

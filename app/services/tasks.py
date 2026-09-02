@@ -69,16 +69,17 @@ def execute_task(
         )
 
         record.requirements = result.get("requirements")
+        record.specification = result.get("specification")
         record.architecture = result.get("architecture")
         record.security_review = result.get("security_review")
         record.risk_level = result.get("risk_level")
         record.implementation = result.get("implementation")
+        record.test_plan = result.get("test_plan")
         record.validation = result.get("validation")
         record.rework_count = result.get("rework_count", 0)
         record.status = result.get("status", "FAILED")
         record.updated_at = utc_now()
 
-        
         if record.security_review:
             persist_security_findings(
                 db,

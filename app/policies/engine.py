@@ -34,6 +34,24 @@ def _check(
 ) -> bool:
     security_review = context.get("security_review") or {}
     threat_model = security_review.get("threat_model") or {}
+    specification = context.get("specification") or {}
+    specification_requirements = specification.get("requirements") or []
+    scenarios = specification.get("acceptance_scenarios") or []
+    requirement_ids = {
+        item.get("id") for item in specification_requirements if item.get("id")
+    }
+    scenario_requirement_ids = {
+        requirement_id
+        for scenario in scenarios
+        for requirement_id in scenario.get("requirement_ids", [])
+    }
+    test_plan = context.get("test_plan") or {}
+    test_cases = test_plan.get("test_cases") or []
+    tested_requirement_ids = {
+        requirement_id
+        for test_case in test_cases
+        for requirement_id in test_case.get("requirement_ids", [])
+    }
 
     checks = {
         "requirements_present": bool(
@@ -45,6 +63,20 @@ def _check(
         "architecture_present": bool(
             context.get("architecture")
         ),
+        "specification_present": bool(specification),
+        "specification_requirements_identified": bool(requirement_ids)
+        and len(requirement_ids) == len(specification_requirements),
+        "acceptance_scenarios_structured": bool(scenarios)
+        and all(
+            scenario.get("id")
+            and scenario.get("requirement_ids")
+            and scenario.get("given")
+            and scenario.get("when")
+            and scenario.get("then")
+            for scenario in scenarios
+        ),
+        "requirements_traceable": bool(requirement_ids)
+        and requirement_ids <= scenario_requirement_ids,
         "no_critical_security_findings": (
             _severity_count(
                 context,
@@ -69,6 +101,14 @@ def _check(
         ),
         "implementation_present": bool(
             context.get("implementation")
+        ),
+        "test_plan_present": bool(test_plan),
+        "test_plan_covers_requirements": bool(requirement_ids)
+        and requirement_ids <= tested_requirement_ids,
+        "negative_security_tests_present": any(
+            test_case.get("negative")
+            and test_case.get("test_type") == "SECURITY"
+            for test_case in test_cases
         ),
         "tests_passed": bool(
             (
