@@ -2,12 +2,13 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from app.db.session import SessionLocal
+from app.version import __version__
 
 router = APIRouter(tags=["health"])
 
 @router.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "version": "1.0.0-rc1"}
+    return {"status": "ok", "version": __version__}
 
 @router.get("/ready")
 def ready() -> dict[str, str]:

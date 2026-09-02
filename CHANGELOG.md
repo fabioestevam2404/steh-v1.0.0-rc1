@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.0.0-rc2] - 2026-09-02
+
+### Fixed
+- Recovered FastAPI startup and pytest collection.
+- Aligned database, API, Pydantic and LangGraph contracts.
+- Eliminated all strict mypy and Ruff violations.
+- Decoupled unit tests from the PostgreSQL checkpointer.
+- Replaced fragile scanner installers with checksummed release artifacts.
+- Restored Semgrep compatibility with an explicit setuptools constraint.
+
+### Added
+- Full Alembic `head -> base -> head` validation.
+- Separated unit, integration and E2E release gates.
+- Executable smoke tests for Semgrep, Gitleaks and Trivy.
+- Commit-bound JSON validation evidence.
+- Health, readiness and operational metrics coverage.
+- RC tag validation workflow and Node.js 24-compatible Actions.
+
+### Validation
+- Ruff: PASS.
+- mypy strict: PASS.
+- Unit, integration and E2E tests: PASS.
+- PostgreSQL migration roundtrip: PASS.
+- Scanner image build and smoke tests: PASS.
+- GitHub Actions and RC evidence: PASS.
+
+---
+
 ## [1.0.0-rc1] - 2026-08-30
 
 ### Fixed

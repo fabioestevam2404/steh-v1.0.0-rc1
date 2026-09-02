@@ -12,6 +12,7 @@ from app.orchestration.checkpoint import (
     close_checkpointer,
     init_checkpointer,
 )
+from app.version import __version__
 
 
 @asynccontextmanager
@@ -24,7 +25,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title=settings.app_name,
-    version="1.0.0-rc1",
+    version=__version__,
     lifespan=lifespan,
 )
 
