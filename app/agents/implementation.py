@@ -32,6 +32,7 @@ class ImplementationAgent:
         architecture: dict[str, Any],
         security_review: dict[str, Any],
         test_plan: dict[str, Any],
+        rework_decision: dict[str, Any] | None = None,
     ) -> ImplementationPlan:
         if self.mode == "openai":
             if not self.api_key:
@@ -73,6 +74,9 @@ SECURITY REVIEW:
 
 APPROVED TEST PLAN:
 {test_plan}
+
+REWORK FEEDBACK:
+{rework_decision or "No rework requested."}
 """
             )
 
@@ -130,12 +134,14 @@ def health():
         architecture: dict[str, Any],
         security_review: dict[str, Any],
         test_plan: dict[str, Any],
+        rework_decision: dict[str, Any] | None = None,
     ) -> AgentResult:
         plan = self.plan(
             requirements,
             architecture,
             security_review,
             test_plan,
+            rework_decision,
         )
 
         max_files = int(

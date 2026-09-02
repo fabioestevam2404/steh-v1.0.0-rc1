@@ -307,7 +307,7 @@ def external_validation(
     record.rework_count = decision.attempt
 
     if decision.exhausted:
-        record.status = "BLOCKED"
+        record.status = "REWORK_EXHAUSTED"
 
     elif decision.required:
         record.status = "REWORK_REQUIRED"

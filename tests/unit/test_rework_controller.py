@@ -7,6 +7,7 @@ def test_rework_is_bounded() -> None:
     last=controller.decide(2,["high finding"])
     assert first.required is True
     assert first.exhausted is False
+    assert first.automatic is True
     assert last.exhausted is True
 
 def test_clean_validation_needs_no_rework() -> None:

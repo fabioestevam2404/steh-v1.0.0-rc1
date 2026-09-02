@@ -13,7 +13,7 @@ runner:
 
 rework:
   max_attempts: 2
-  automatic: false
+  automatic: true
 
 scanners:
   semgrep:
