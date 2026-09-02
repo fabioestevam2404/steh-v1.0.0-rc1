@@ -15,6 +15,8 @@ from app.models.contracts import (
     TaskStatus,
     ids,
 )
+from app.models.specification import SoftwareSpecification
+from app.models.test_plan import TestPlan
 from app.services.audit import get_task_audit, record_event
 from app.services.security import get_security_findings
 from app.services.tasks import execute_task
@@ -38,6 +40,11 @@ def _response(record: TaskRecord) -> TaskResponse:
             if record.requirements is not None
             else None
         ),
+        specification=(
+            SoftwareSpecification.model_validate(record.specification)
+            if record.specification is not None
+            else None
+        ),
         architecture=(
             ArchitectureResult.model_validate(record.architecture)
             if record.architecture is not None
@@ -46,6 +53,11 @@ def _response(record: TaskRecord) -> TaskResponse:
         security_review=record.security_review,
         risk_level=record.risk_level,
         implementation=record.implementation,
+        test_plan=(
+            TestPlan.model_validate(record.test_plan)
+            if record.test_plan is not None
+            else None
+        ),
         validation=record.validation,
         rework_count=record.rework_count,
         external_scan=record.external_scan,

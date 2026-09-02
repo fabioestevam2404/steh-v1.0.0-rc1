@@ -5,12 +5,20 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.specification import SoftwareSpecification
+from app.models.test_plan import TestPlan
+
 
 class TaskStatus(StrEnum):
     CREATED = "CREATED"
     ANALYZING = "ANALYZING"
+    SPECIFYING = "SPECIFYING"
     ARCHITECTING = "ARCHITECTING"
+    SECURITY_REVIEW = "SECURITY_REVIEW"
+    TEST_PLANNING = "TEST_PLANNING"
+    READY_FOR_IMPLEMENTATION = "READY_FOR_IMPLEMENTATION"
     IMPLEMENTING = "IMPLEMENTING"
+    VALIDATING = "VALIDATING"
     HUMAN_REVIEW = "HUMAN_REVIEW"
     BLOCKED = "BLOCKED"
     REWORK_REQUIRED = "REWORK_REQUIRED"
@@ -78,10 +86,12 @@ class TaskResponse(BaseModel):
     trace_id: UUID
     status: TaskStatus
     requirements: RequirementsResult | None = None
+    specification: SoftwareSpecification | None = None
     architecture: ArchitectureResult | None = None
     security_review: dict[str, Any] | None = None
     risk_level: str | None = None
     implementation: dict[str, Any] | None = None
+    test_plan: TestPlan | None = None
     validation: dict[str, Any] | None = None
     rework_count: int = 0
     external_scan: list[dict[str, Any]] | None = None

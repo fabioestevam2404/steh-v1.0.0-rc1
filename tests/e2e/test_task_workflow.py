@@ -23,6 +23,7 @@ def test_full_task_workflow() -> None:
 
         assert payload["status"] == "HUMAN_REVIEW"
         assert payload["requirements"]
+        assert payload["specification"]
         assert payload["architecture"]
         assert payload["security_review"]
         assert payload["risk_level"]
@@ -43,6 +44,7 @@ def test_full_task_workflow() -> None:
         }
 
         assert "requirements_agent" in agent_names
+        assert "specification_agent" in agent_names
         assert "architecture_agent" in agent_names
         assert "security_agent" in agent_names
 

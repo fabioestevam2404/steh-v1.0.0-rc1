@@ -10,12 +10,18 @@ class EngineeringState(TypedDict, total=False):
     requirements: dict[str, Any]
     requirements_run: dict[str, Any]
 
+    specification: dict[str, Any]
+    specification_run: dict[str, Any]
+
     architecture: dict[str, Any]
     architecture_run: dict[str, Any]
 
     security_review: dict[str, Any]
     security_run: dict[str, Any]
     risk_level: str
+
+    test_plan: dict[str, Any]
+    test_plan_run: dict[str, Any]
 
     implementation: dict[str, Any]
     implementation_run: dict[str, Any]

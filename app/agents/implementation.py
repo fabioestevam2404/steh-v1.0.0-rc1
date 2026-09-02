@@ -31,6 +31,7 @@ class ImplementationAgent:
         requirements: dict[str, Any],
         architecture: dict[str, Any],
         security_review: dict[str, Any],
+        test_plan: dict[str, Any],
     ) -> ImplementationPlan:
         if self.mode == "openai":
             if not self.api_key:
@@ -69,6 +70,9 @@ ARCHITECTURE:
 
 SECURITY REVIEW:
 {security_review}
+
+APPROVED TEST PLAN:
+{test_plan}
 """
             )
 
@@ -125,11 +129,13 @@ def health():
         requirements: dict[str, Any],
         architecture: dict[str, Any],
         security_review: dict[str, Any],
+        test_plan: dict[str, Any],
     ) -> AgentResult:
         plan = self.plan(
             requirements,
             architecture,
             security_review,
+            test_plan,
         )
 
         max_files = int(
