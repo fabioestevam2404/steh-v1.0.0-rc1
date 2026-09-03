@@ -1,4 +1,7 @@
+from datetime import UTC, datetime
+
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command
 
 from app.orchestration.graph import build_graph
 
@@ -36,5 +39,70 @@ def test_high_security_risk_prevents_implementation() -> None:
     assert result["security_review"]
     assert result["specification"]
     assert result["status"] == "HUMAN_REVIEW"
+    assert result["human_review"]["status"] == "PENDING"
     assert "test_plan" not in result
     assert "implementation" not in result
+
+
+def test_rejected_human_review_blocks_from_checkpoint() -> None:
+    graph = build_graph(checkpointer=MemorySaver())
+    config = {"configurable": {"thread_id": "hitl-reject"}}
+    graph.invoke(
+        {
+            "task_id": "hitl-task",
+            "trace_id": "hitl-trace",
+            "user_request": "Crie uma API segura para cadastro de clientes.",
+            "status": "ANALYZING",
+            "evidence": [],
+        },
+        config=config,
+    )
+
+    result = graph.invoke(
+        Command(
+            resume={
+                "status": "REJECTED",
+                "reviewer": "security-reviewer",
+                "justification": "Residual risk was not accepted.",
+                "decided_at": datetime.now(UTC).isoformat(),
+            }
+        ),
+        config=config,
+    )
+
+    assert result["status"] == "BLOCKED"
+    assert result["human_review"]["status"] == "REJECTED"
+    assert result["human_review"]["reviewer"] == "security-reviewer"
+
+
+def test_approved_human_review_resumes_to_completion() -> None:
+    graph = build_graph(checkpointer=MemorySaver())
+    config = {"configurable": {"thread_id": "hitl-approve"}}
+    graph.invoke(
+        {
+            "task_id": "hitl-approved-task",
+            "trace_id": "hitl-approved-trace",
+            "user_request": "Crie uma API segura para cadastro de clientes.",
+            "status": "ANALYZING",
+            "evidence": [],
+        },
+        config=config,
+    )
+
+    result = graph.invoke(
+        Command(
+            resume={
+                "status": "APPROVED",
+                "reviewer": "security-reviewer",
+                "justification": "Risk accepted with compensating controls.",
+                "decided_at": datetime.now(UTC).isoformat(),
+            }
+        ),
+        config=config,
+    )
+
+    assert result["status"] == "COMPLETED"
+    assert result["human_review"]["status"] == "APPROVED"
+    assert result["test_plan"]
+    assert result["implementation"]
+    assert result["validation"]

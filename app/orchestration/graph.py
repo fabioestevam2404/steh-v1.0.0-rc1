@@ -1,9 +1,10 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import interrupt
 
 from app.agents.architecture import ArchitectureAgent
 from app.agents.implementation import ImplementationAgent
@@ -14,6 +15,11 @@ from app.agents.test_engineer import TestAgent
 from app.agents.test_planning import TestPlanningAgent
 from app.core.config import settings
 from app.models.contracts import AgentResult
+from app.models.human_review import (
+    HumanReviewArtifact,
+    HumanReviewResume,
+    HumanReviewStatus,
+)
 from app.models.state import EngineeringState
 from app.orchestration.checkpoint import get_checkpointer
 from app.orchestration.lifecycle import AgentLifecycle
@@ -289,7 +295,66 @@ def build_graph(
         if status == "READY_FOR_IMPLEMENTATION":
             return "test_planning"
 
+        if status == "HUMAN_REVIEW":
+            return "prepare_human_review"
+
         return "end"
+
+    def prepare_human_review(state: EngineeringState) -> StateUpdate:
+        requested_at = datetime.now(UTC)
+        review = HumanReviewArtifact(
+            status=HumanReviewStatus.PENDING,
+            requested_at=requested_at,
+            expires_at=requested_at
+            + timedelta(minutes=settings.human_review_ttl_minutes),
+            policy_result_count=len(state.get("policy_results", [])),
+        )
+        return {
+            "human_review": review.model_dump(mode="json"),
+            "status": "HUMAN_REVIEW",
+            "evidence": [
+                *state.get("evidence", []),
+                {
+                    "type": "human_review_requested",
+                    "timestamp": requested_at.isoformat(),
+                    "expires_at": review.expires_at.isoformat(),
+                },
+            ],
+        }
+
+    def human_review(state: EngineeringState) -> StateUpdate:
+        pending = HumanReviewArtifact.model_validate(state["human_review"])
+        resume = HumanReviewResume.model_validate(interrupt(state["human_review"]))
+        decided = pending.model_copy(
+            update={
+                "status": resume.status,
+                "reviewer": resume.reviewer,
+                "justification": resume.justification,
+                "decided_at": resume.decided_at,
+            }
+        )
+        approved = resume.status == HumanReviewStatus.APPROVED
+        return {
+            "human_review": decided.model_dump(mode="json"),
+            "status": "READY_FOR_IMPLEMENTATION" if approved else "BLOCKED",
+            "blocked": not approved,
+            "evidence": [
+                *state.get("evidence", []),
+                {
+                    "type": "human_review_decided",
+                    "timestamp": resume.decided_at.isoformat(),
+                    "status": resume.status,
+                    "reviewer": resume.reviewer,
+                },
+            ],
+        }
+
+    def route_after_human_review(state: EngineeringState) -> str:
+        return (
+            "test_planning"
+            if state.get("status") == "READY_FOR_IMPLEMENTATION"
+            else "blocked"
+        )
 
     def test_planning(state: EngineeringState) -> StateUpdate:
         def call() -> AgentResult:
@@ -542,6 +607,8 @@ def build_graph(
 
     builder.add_node("test_planning", test_planning)
     builder.add_node("test_plan_gate", test_plan_gate)
+    builder.add_node("prepare_human_review", prepare_human_review)
+    builder.add_node("human_review", human_review)
 
     builder.add_node(
         "implementation",
@@ -618,7 +685,18 @@ def build_graph(
         route_after_security,
         {
             "test_planning": "test_planning",
+            "prepare_human_review": "prepare_human_review",
             "end": END,
+        },
+    )
+
+    builder.add_edge("prepare_human_review", "human_review")
+    builder.add_conditional_edges(
+        "human_review",
+        route_after_human_review,
+        {
+            "test_planning": "test_planning",
+            "blocked": "blocked",
         },
     )
 

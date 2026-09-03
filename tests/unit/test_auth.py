@@ -13,6 +13,17 @@ def test_local_mode_returns_development_principal(monkeypatch):
     monkeypatch.setattr(auth.settings, "auth_enabled", False)
     p = auth.get_principal(None)
     assert "steh_user" in p.roles
+    assert "steh_reviewer" in p.roles
+
+
+def test_reviewer_role_is_required(monkeypatch):
+    monkeypatch.setattr(auth.settings, "auth_reviewer_role", "steh_reviewer")
+    principal = auth.Principal(subject="user", roles=("steh_user",))
+
+    with pytest.raises(HTTPException) as exc:
+        auth.require_reviewer(principal)
+
+    assert exc.value.status_code == 403
 
 
 def test_auth_enabled_rejects_missing_token(monkeypatch):
