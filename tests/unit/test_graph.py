@@ -12,6 +12,15 @@ def test_patch_4a_nodes_precede_implementation() -> None:
     assert "test_plan_gate" in graph.nodes
 
 
+def test_validation_gate_can_return_to_implementation() -> None:
+    graph = build_graph(checkpointer=MemorySaver()).get_graph()
+
+    assert any(
+        edge.source == "validation_gate" and edge.target == "implementation"
+        for edge in graph.edges
+    )
+
+
 def test_high_security_risk_prevents_implementation() -> None:
     graph = build_graph(checkpointer=MemorySaver())
     result = graph.invoke(

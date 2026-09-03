@@ -21,4 +21,5 @@ class ReworkDecision(BaseModel):
     attempt: int
     max_attempts: int
     exhausted: bool
+    automatic: bool
     reasons: list[str] = Field(default_factory=list)

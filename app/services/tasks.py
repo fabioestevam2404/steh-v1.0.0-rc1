@@ -77,6 +77,7 @@ def execute_task(
         record.test_plan = result.get("test_plan")
         record.validation = result.get("validation")
         record.rework_count = result.get("rework_count", 0)
+        record.rework_decision = result.get("rework_decision")
         record.status = result.get("status", "FAILED")
         record.updated_at = utc_now()
 
@@ -103,6 +104,7 @@ def execute_task(
             "BLOCKED": "TASK_BLOCKED",
             "HUMAN_REVIEW": "TASK_HUMAN_REVIEW",
             "REWORK_REQUIRED": "TASK_REWORK_REQUIRED",
+            "REWORK_EXHAUSTED": "TASK_REWORK_EXHAUSTED",
         }.get(record.status, "TASK_FAILED")
 
         record_event(
@@ -116,6 +118,16 @@ def execute_task(
                 "risk_level": record.risk_level,
             },
         )
+
+        for decision in result.get("rework_history", []):
+            record_event(
+                db,
+                task_id,
+                trace_id,
+                "REWORK_DECISION",
+                "rework_controller",
+                decision,
+            )
 
         db.commit()
         db.refresh(record)

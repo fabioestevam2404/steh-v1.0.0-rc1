@@ -11,12 +11,19 @@ class ReworkController:
             Path(policy_path).read_text(encoding="utf-8")
         )
 
+    @property
+    def automatic(self) -> bool:
+        return bool(self.policy["rework"].get("automatic", False))
+
     def decide(
         self,
         current_attempt: int,
         reasons: list[str],
     ) -> ReworkDecision:
         max_attempts = int(self.policy["rework"]["max_attempts"])
+        if max_attempts < 1:
+            raise ValueError("rework.max_attempts must be at least 1")
+
         required = bool(reasons)
         exhausted = required and current_attempt >= max_attempts
 
@@ -25,5 +32,6 @@ class ReworkController:
             attempt=current_attempt,
             max_attempts=max_attempts,
             exhausted=exhausted,
+            automatic=self.automatic,
             reasons=reasons,
         )

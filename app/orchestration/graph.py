@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -16,6 +17,7 @@ from app.models.contracts import AgentResult
 from app.models.state import EngineeringState
 from app.orchestration.checkpoint import get_checkpointer
 from app.orchestration.lifecycle import AgentLifecycle
+from app.orchestration.rework import ReworkController
 from app.policies.engine import PolicyEngine
 from app.policies.loader import load_policy_config
 
@@ -68,6 +70,7 @@ def build_graph(
     policy_engine = PolicyEngine(
         load_policy_config(settings.policy_file)
     )
+    rework_controller = ReworkController()
 
     def requirements(state: EngineeringState) -> StateUpdate:
         def call() -> AgentResult:
@@ -328,6 +331,7 @@ def build_graph(
                 state["architecture"],
                 state["security_review"],
                 state["test_plan"],
+                state.get("rework_decision"),
             )
 
         result = (
@@ -369,9 +373,12 @@ def build_graph(
             "status": (
                 "BLOCKED"
                 if not decision.passed
-                else "COMPLETED"
+                else "IMPLEMENTING"
             ),
         }
+
+    def route_after_implementation(state: EngineeringState) -> str:
+        return "blocked" if state.get("blocked") else "validation"
 
     def validation(
         state: EngineeringState,
@@ -415,10 +422,28 @@ def build_graph(
             ),
         ]
 
-        requires_rework = any(
-            not decision.passed
-            for decision in decisions
+        reasons = [decision.reason for decision in decisions if not decision.passed]
+        current_attempt = state.get("rework_count", 0)
+        decision = rework_controller.decide(
+            current_attempt + 1 if reasons else current_attempt,
+            reasons,
         )
+        serialized_decision = decision.model_dump(mode="json")
+
+        if not decision.required:
+            next_status = "COMPLETED"
+        elif decision.exhausted:
+            next_status = "REWORK_EXHAUSTED"
+        elif decision.automatic:
+            next_status = "REWORK_REQUIRED"
+        else:
+            next_status = "HUMAN_REVIEW"
+
+        rework_evidence = {
+            "type": "rework_decision",
+            "timestamp": datetime.now(UTC).isoformat(),
+            **serialized_decision,
+        }
 
         return {
             "policy_results": [
@@ -431,16 +456,25 @@ def build_graph(
                     for decision in decisions
                 ],
             ],
-            "status": (
-                "REWORK_REQUIRED"
-                if requires_rework
-                else "COMPLETED"
-            ),
-            "rework_count": state.get(
-                "rework_count",
-                0,
-            ),
+            "status": next_status,
+            "rework_count": decision.attempt,
+            "rework_decision": serialized_decision,
+            "rework_history": [
+                *state.get("rework_history", []),
+                serialized_decision,
+            ],
+            "evidence": [
+                *state.get("evidence", []),
+                rework_evidence,
+            ],
         }
+
+    def route_after_validation(state: EngineeringState) -> str:
+        return (
+            "implementation"
+            if state.get("status") == "REWORK_REQUIRED"
+            else "end"
+        )
 
     def route_after_requirements(
         state: EngineeringState,
@@ -600,9 +634,13 @@ def build_graph(
         "implementation_gate",
     )
 
-    builder.add_edge(
+    builder.add_conditional_edges(
         "implementation_gate",
-        "validation",
+        route_after_implementation,
+        {
+            "validation": "validation",
+            "blocked": "blocked",
+        },
     )
 
     builder.add_edge(
@@ -610,9 +648,13 @@ def build_graph(
         "validation_gate",
     )
 
-    builder.add_edge(
+    builder.add_conditional_edges(
         "validation_gate",
-        END,
+        route_after_validation,
+        {
+            "implementation": "implementation",
+            "end": END,
+        },
     )
 
     builder.add_edge(
