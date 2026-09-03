@@ -19,6 +19,7 @@ class EngineeringState(TypedDict, total=False):
     security_review: dict[str, Any]
     security_run: dict[str, Any]
     risk_level: str
+    human_review: dict[str, Any]
 
     test_plan: dict[str, Any]
     test_plan_run: dict[str, Any]

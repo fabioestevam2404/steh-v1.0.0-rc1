@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.human_review import HumanReviewArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 
@@ -23,6 +24,7 @@ class TaskStatus(StrEnum):
     BLOCKED = "BLOCKED"
     REWORK_REQUIRED = "REWORK_REQUIRED"
     REWORK_EXHAUSTED = "REWORK_EXHAUSTED"
+    RESUMING = "RESUMING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -97,6 +99,7 @@ class TaskResponse(BaseModel):
     rework_count: int = 0
     external_scan: list[dict[str, Any]] | None = None
     rework_decision: dict[str, Any] | None = None
+    human_review: HumanReviewArtifact | None = None
     created_at: datetime
 
 

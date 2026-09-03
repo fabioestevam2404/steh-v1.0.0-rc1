@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     auth_jwt_secret: str = "change-me-local-only"
     auth_jwt_algorithm: str = "HS256"
     auth_required_role: str = "steh_user"
+    auth_reviewer_role: str = "steh_reviewer"
+    human_review_ttl_minutes: int = Field(default=60, ge=1, le=10080)
 
     policy_file: str = "policies/quality-gates.yaml"
 

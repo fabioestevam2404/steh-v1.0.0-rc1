@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import jwt
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from app.core.config import settings
 
@@ -17,7 +17,10 @@ def get_principal(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Principal:
     if not settings.auth_enabled:
-        return Principal(subject="local-development", roles=("steh_user",))
+        return Principal(
+            subject="local-development",
+            roles=("steh_user", "steh_reviewer"),
+        )
 
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -47,3 +50,14 @@ def get_principal(
         )
 
     return Principal(subject=str(claims["sub"]), roles=roles)
+
+
+def require_reviewer(
+    principal: Annotated[Principal, Depends(get_principal)],
+) -> Principal:
+    if settings.auth_reviewer_role not in principal.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reviewer role required.",
+        )
+    return principal

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_principal
+from app.core.auth import Principal, get_principal, require_reviewer
 from app.db.models import TaskRecord
 from app.db.session import get_db
 from app.models.contracts import (
@@ -15,11 +15,16 @@ from app.models.contracts import (
     TaskStatus,
     ids,
 )
+from app.models.human_review import HumanReviewArtifact, HumanReviewDecision
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 from app.services.audit import get_task_audit, record_event
 from app.services.security import get_security_findings
-from app.services.tasks import execute_task
+from app.services.tasks import (
+    HumanReviewConflictError,
+    execute_task,
+    resume_human_review,
+)
 
 router = APIRouter(
     prefix="/api/v1/tasks",
@@ -28,6 +33,7 @@ router = APIRouter(
 )
 
 DbSession = Annotated[Session, Depends(get_db)]
+ReviewerPrincipal = Annotated[Principal, Depends(require_reviewer)]
 
 
 def _response(record: TaskRecord) -> TaskResponse:
@@ -62,6 +68,11 @@ def _response(record: TaskRecord) -> TaskResponse:
         rework_count=record.rework_count,
         external_scan=record.external_scan,
         rework_decision=record.rework_decision,
+        human_review=(
+            HumanReviewArtifact.model_validate(record.human_review)
+            if record.human_review is not None
+            else None
+        ),
         created_at=record.created_at,
     )
 
@@ -139,6 +150,32 @@ def get_task(
             status_code=404,
             detail="Task not found.",
         )
+
+    return _response(record)
+
+
+@router.post(
+    "/{task_id}/human-review",
+    response_model=TaskResponse,
+)
+def decide_human_review(
+    task_id: UUID,
+    payload: HumanReviewDecision,
+    db: DbSession,
+    principal: ReviewerPrincipal,
+) -> TaskResponse:
+    try:
+        record = resume_human_review(
+            db,
+            task_id,
+            principal.subject,
+            payload,
+        )
+    except HumanReviewConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
     return _response(record)
 
