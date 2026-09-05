@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     github_token: SecretStr | None = None
     github_timeout_seconds: float = Field(default=10.0, ge=1.0, le=30.0)
     github_issue_max_body_chars: int = Field(default=20000, ge=1000, le=100000)
+    github_pr_max_files: int = Field(default=50, ge=1, le=100)
+    github_pr_max_patch_chars: int = Field(default=100000, ge=1000, le=500000)
+    github_pr_max_response_bytes: int = Field(
+        default=2000000,
+        ge=10000,
+        le=10000000,
+    )
     github_allowed_repositories: str = ""
 
     policy_file: str = "policies/quality-gates.yaml"

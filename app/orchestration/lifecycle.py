@@ -41,6 +41,7 @@ class AgentLifecycle:
                 self.db,
                 run,
                 result.result,
+                result.findings,
                 result.evidence,
                 result.confidence,
             )

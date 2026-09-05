@@ -21,6 +21,11 @@ from app.models.github_issue import (
     GitHubIssueTaskCreate,
     IssueAnalysisArtifact,
 )
+from app.models.github_pull_request import (
+    GitHubPullRequestSnapshot,
+    GitHubPullRequestTaskCreate,
+    PullRequestReviewArtifact,
+)
 from app.models.human_review import HumanReviewArtifact, HumanReviewDecision
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
@@ -38,6 +43,17 @@ from app.services.github_issues import (
     create_task_from_github_issue,
     github_issue_receipt,
 )
+from app.services.github_pull_requests import (
+    GitHubPullRequestNotFoundError,
+    GitHubPullRequestReader,
+    GitHubPullRequestRepositoryNotAllowedError,
+    GitHubPullRequestUpstreamError,
+    get_github_pull_request_reader,
+)
+from app.services.pull_request_reviews import (
+    create_pull_request_review,
+    github_pull_request_receipt,
+)
 from app.services.security import get_security_findings
 from app.services.tasks import (
     HumanReviewConflictError,
@@ -54,6 +70,10 @@ router = APIRouter(
 DbSession = Annotated[Session, Depends(get_db)]
 ReviewerPrincipal = Annotated[Principal, Depends(require_reviewer)]
 IssueReader = Annotated[GitHubIssueReader, Depends(get_github_issue_reader)]
+PullRequestReader = Annotated[
+    GitHubPullRequestReader,
+    Depends(get_github_pull_request_reader),
+]
 
 
 def _response(record: TaskRecord) -> TaskResponse:
@@ -108,6 +128,22 @@ def _response(record: TaskRecord) -> TaskResponse:
         issue_analysis=(
             IssueAnalysisArtifact.model_validate(record.issue_analysis)
             if record.issue_analysis is not None
+            else None
+        ),
+        source_pull_request=(
+            github_pull_request_receipt(
+                GitHubPullRequestSnapshot.model_validate(
+                    record.source_pull_request
+                )
+            )
+            if record.source_pull_request is not None
+            else None
+        ),
+        pull_request_review=(
+            PullRequestReviewArtifact.model_validate(
+                record.pull_request_review
+            )
+            if record.pull_request_review is not None
             else None
         ),
         created_at=record.created_at,
@@ -210,6 +246,46 @@ def create_task_from_issue(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="GitHub issue analysis failed.",
+        ) from exc
+
+
+@router.post(
+    "/from-github-pull-request",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def review_github_pull_request(
+    payload: GitHubPullRequestTaskCreate,
+    db: DbSession,
+    reader: PullRequestReader,
+) -> TaskResponse:
+    try:
+        return _response(
+            create_pull_request_review(
+                db,
+                payload.pull_request,
+                reader,
+            )
+        )
+    except GitHubPullRequestRepositoryNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+    except GitHubPullRequestNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except (GitHubPullRequestUpstreamError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="GitHub pull request ingestion failed.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GitHub pull request review failed.",
         ) from exc
 
 

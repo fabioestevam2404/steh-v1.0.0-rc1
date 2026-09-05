@@ -68,11 +68,13 @@ def complete_agent_run(
     db: Session,
     run: AgentRunRecord,
     result: dict[str, Any],
+    findings: list[dict[str, Any]],
     evidence: list[dict[str, Any]],
     confidence: float,
 ) -> None:
     run.status = "SUCCEEDED"
     run.result = result
+    run.findings = findings
     run.evidence = evidence
     run.confidence = confidence
     run.completed_at = datetime.now(UTC)
