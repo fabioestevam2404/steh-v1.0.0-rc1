@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     context_max_sources: int = Field(default=10, ge=1, le=50)
     context_max_tokens: int = Field(default=4000, ge=128, le=50000)
     context_max_source_tokens: int = Field(default=2000, ge=64, le=25000)
+
+    github_api_url: str = "https://api.github.com"
+    github_api_version: str = Field(
+        default="2026-03-10",
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+    )
+    github_token: SecretStr | None = None
+    github_timeout_seconds: float = Field(default=10.0, ge=1.0, le=30.0)
+    github_issue_max_body_chars: int = Field(default=20000, ge=1000, le=100000)
+    github_allowed_repositories: str = ""
 
     policy_file: str = "policies/quality-gates.yaml"
 

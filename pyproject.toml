@@ -21,13 +21,13 @@ dependencies = [
     "PyYAML>=6.0,<7.0",
     "PyJWT>=2.9,<3.0",
     "alembic>=1.14,<2.0",
+    "httpx>=0.28,<1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3,<9.0",
     "pytest-asyncio>=0.25,<1.0",
-    "httpx>=0.28,<1.0",
     "ruff>=0.9,<1.0",
     "mypy>=1.14,<2.0",
     "types-PyYAML>=6.0,<7.0",

@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.context import ContextReceipt, ContextSourceInput
+from app.models.github_issue import GitHubIssueReceipt, IssueAnalysisArtifact
 from app.models.human_review import HumanReviewArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
@@ -13,6 +14,7 @@ from app.models.test_plan import TestPlan
 
 class TaskStatus(StrEnum):
     CREATED = "CREATED"
+    ANALYZING_ISSUE = "ANALYZING_ISSUE"
     CONTEXTUALIZING = "CONTEXTUALIZING"
     ANALYZING = "ANALYZING"
     SPECIFYING = "SPECIFYING"
@@ -111,6 +113,8 @@ class TaskResponse(BaseModel):
     rework_decision: dict[str, Any] | None = None
     human_review: HumanReviewArtifact | None = None
     context: ContextReceipt | None = None
+    source_issue: GitHubIssueReceipt | None = None
+    issue_analysis: IssueAnalysisArtifact | None = None
     created_at: datetime
 
 

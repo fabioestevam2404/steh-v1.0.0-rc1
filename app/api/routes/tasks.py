@@ -16,11 +16,28 @@ from app.models.contracts import (
     TaskStatus,
     ids,
 )
+from app.models.github_issue import (
+    GitHubIssueSnapshot,
+    GitHubIssueTaskCreate,
+    IssueAnalysisArtifact,
+)
 from app.models.human_review import HumanReviewArtifact, HumanReviewDecision
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 from app.services.audit import get_task_audit, record_event
 from app.services.context import context_receipt
+from app.services.github_client import (
+    GitHubIssueNotFoundError,
+    GitHubIssueReader,
+    GitHubPullRequestUnsupportedError,
+    GitHubRepositoryNotAllowedError,
+    GitHubUpstreamError,
+    get_github_issue_reader,
+)
+from app.services.github_issues import (
+    create_task_from_github_issue,
+    github_issue_receipt,
+)
 from app.services.security import get_security_findings
 from app.services.tasks import (
     HumanReviewConflictError,
@@ -36,6 +53,7 @@ router = APIRouter(
 
 DbSession = Annotated[Session, Depends(get_db)]
 ReviewerPrincipal = Annotated[Principal, Depends(require_reviewer)]
+IssueReader = Annotated[GitHubIssueReader, Depends(get_github_issue_reader)]
 
 
 def _response(record: TaskRecord) -> TaskResponse:
@@ -78,6 +96,18 @@ def _response(record: TaskRecord) -> TaskResponse:
         context=(
             context_receipt(ContextBundle.model_validate(record.context_bundle))
             if record.context_bundle is not None
+            else None
+        ),
+        source_issue=(
+            github_issue_receipt(
+                GitHubIssueSnapshot.model_validate(record.source_issue)
+            )
+            if record.source_issue is not None
+            else None
+        ),
+        issue_analysis=(
+            IssueAnalysisArtifact.model_validate(record.issue_analysis)
+            if record.issue_analysis is not None
             else None
         ),
         created_at=record.created_at,
@@ -139,6 +169,47 @@ def create_task(
         raise HTTPException(
             status_code=500,
             detail="Task execution failed.",
+        ) from exc
+
+
+@router.post(
+    "/from-github-issue",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_task_from_issue(
+    payload: GitHubIssueTaskCreate,
+    db: DbSession,
+    reader: IssueReader,
+) -> TaskResponse:
+    try:
+        return _response(
+            create_task_from_github_issue(db, payload.issue, reader)
+        )
+    except GitHubRepositoryNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from exc
+    except GitHubIssueNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except GitHubPullRequestUnsupportedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except (GitHubUpstreamError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="GitHub issue ingestion failed.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GitHub issue analysis failed.",
         ) from exc
 
 
