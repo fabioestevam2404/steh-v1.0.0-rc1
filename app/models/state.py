@@ -7,6 +7,8 @@ class EngineeringState(TypedDict, total=False):
     user_request: str
     status: str
 
+    context_bundle: dict[str, Any]
+
     requirements: dict[str, Any]
     requirements_run: dict[str, Any]
 

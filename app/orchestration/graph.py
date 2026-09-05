@@ -14,6 +14,7 @@ from app.agents.specification import SpecificationAgent
 from app.agents.test_engineer import TestAgent
 from app.agents.test_planning import TestPlanningAgent
 from app.core.config import settings
+from app.models.context import ContextBundle
 from app.models.contracts import AgentResult
 from app.models.human_review import (
     HumanReviewArtifact,
@@ -26,6 +27,7 @@ from app.orchestration.lifecycle import AgentLifecycle
 from app.orchestration.rework import ReworkController
 from app.policies.engine import PolicyEngine
 from app.policies.loader import load_policy_config
+from app.services.context import ContextEngine, context_receipt
 
 StateUpdate = EngineeringState
 Workflow = CompiledStateGraph[
@@ -77,11 +79,38 @@ def build_graph(
         load_policy_config(settings.policy_file)
     )
     rework_controller = ReworkController()
+    context_engine = ContextEngine(
+        max_sources=settings.context_max_sources,
+        max_tokens=settings.context_max_tokens,
+        max_source_tokens=settings.context_max_source_tokens,
+    )
+
+    def contextualize(state: EngineeringState) -> StateUpdate:
+        stored_bundle = state.get("context_bundle")
+        bundle = (
+            ContextBundle.model_validate(stored_bundle)
+            if stored_bundle is not None
+            else context_engine.build(state["user_request"], [])
+        )
+        receipt = context_receipt(bundle)
+        return {
+            "context_bundle": bundle.model_dump(mode="json"),
+            "evidence": [
+                *state.get("evidence", []),
+                {
+                    "type": "context_bundle",
+                    "timestamp": bundle.created_at.isoformat(),
+                    **receipt.model_dump(mode="json"),
+                },
+            ],
+            "status": "CONTEXTUALIZING",
+        }
 
     def requirements(state: EngineeringState) -> StateUpdate:
         def call() -> AgentResult:
             return requirements_agent.run(
-                state["user_request"]
+                state["user_request"],
+                ContextBundle.model_validate(state["context_bundle"]),
             )
 
         result = (
@@ -573,6 +602,11 @@ def build_graph(
     ](EngineeringState)
 
     builder.add_node(
+        "context",
+        contextualize,
+    )
+
+    builder.add_node(
         "requirements",
         requirements,
     )
@@ -637,6 +671,11 @@ def build_graph(
 
     builder.add_edge(
         START,
+        "context",
+    )
+
+    builder.add_edge(
+        "context",
         "requirements",
     )
 

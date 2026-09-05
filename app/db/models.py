@@ -17,6 +17,7 @@ class TaskRecord(Base):
     trace_id: Mapped[UUID] = mapped_column(index=True)
     request: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32), index=True)
+    context_bundle: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     requirements: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     specification: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

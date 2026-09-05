@@ -15,6 +15,16 @@ def test_patch_4a_nodes_precede_implementation() -> None:
     assert "test_plan_gate" in graph.nodes
 
 
+def test_context_snapshot_precedes_requirements() -> None:
+    graph = build_graph(checkpointer=MemorySaver()).get_graph()
+
+    assert "context" in graph.nodes
+    assert any(
+        edge.source == "context" and edge.target == "requirements"
+        for edge in graph.edges
+    )
+
+
 def test_validation_gate_can_return_to_implementation() -> None:
     graph = build_graph(checkpointer=MemorySaver()).get_graph()
 

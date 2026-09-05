@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     auth_reviewer_role: str = "steh_reviewer"
     human_review_ttl_minutes: int = Field(default=60, ge=1, le=10080)
 
+    context_max_sources: int = Field(default=10, ge=1, le=50)
+    context_max_tokens: int = Field(default=4000, ge=128, le=50000)
+    context_max_source_tokens: int = Field(default=2000, ge=64, le=25000)
+
     policy_file: str = "policies/quality-gates.yaml"
 
     model_config = SettingsConfigDict(

@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 
 from pydantic import SecretStr
 
+from app.models.context import ContextBundle
 from app.models.contracts import AgentResult, RequirementsResult
+from app.services.context import render_context_for_prompt
 
 
 class RequirementsAgent:
@@ -21,6 +23,7 @@ class RequirementsAgent:
     def run(
         self,
         request: str,
+        context: ContextBundle | None = None,
     ) -> AgentResult:
         if self.mode == "openai":
             from langchain_openai import ChatOpenAI
@@ -55,7 +58,12 @@ class RequirementsAgent:
                         ),
                         (
                             "human",
-                            request,
+                            (
+                                f"AUTHORITATIVE USER REQUEST:\n{request}\n\n"
+                                f"{render_context_for_prompt(context)}"
+                                if context is not None
+                                else request
+                            ),
                         ),
                     ]
                 )
@@ -107,6 +115,9 @@ class RequirementsAgent:
                     "timestamp": datetime.now(
                         UTC
                     ).isoformat(),
+                    "context_bundle_id": (
+                        context.bundle_id if context is not None else None
+                    ),
                 }
             ],
             confidence=confidence,
