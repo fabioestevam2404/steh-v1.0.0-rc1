@@ -50,12 +50,18 @@
 - commit-bound JSON evidence artifact
 - release workflow for `rc` tags
 
-## After RC2
+## Delivered after RC2
 
 - Specification/SDD and Given/When/Then criteria
 - Test Plan before implementation
 - rework loop connected to the graph
 - resumable Human-in-the-Loop decisions
-- Context Engine
-- GitHub Issue Analysis and PR Review agents
-- auxiliary LLM-as-Judge evaluation
+- auditable Context Engine
+- read-only GitHub Issue Analysis
+- read-only GitHub Pull Request Review
+
+## Planned for the next release candidate
+
+- auxiliary, non-authoritative LLM-as-Judge evaluation
+- post-integration security and operational hardening
+- updated acceptance evidence for the complete post-RC2 workflow

@@ -20,6 +20,14 @@ class TaskRecord(Base):
     context_bundle: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     source_issue: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     issue_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    source_pull_request: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+    pull_request_review: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
 
     requirements: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     specification: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

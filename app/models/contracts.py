@@ -7,6 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.context import ContextReceipt, ContextSourceInput
 from app.models.github_issue import GitHubIssueReceipt, IssueAnalysisArtifact
+from app.models.github_pull_request import (
+    GitHubPullRequestReceipt,
+    PullRequestReviewArtifact,
+)
 from app.models.human_review import HumanReviewArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
@@ -15,6 +19,7 @@ from app.models.test_plan import TestPlan
 class TaskStatus(StrEnum):
     CREATED = "CREATED"
     ANALYZING_ISSUE = "ANALYZING_ISSUE"
+    ANALYZING_PULL_REQUEST = "ANALYZING_PULL_REQUEST"
     CONTEXTUALIZING = "CONTEXTUALIZING"
     ANALYZING = "ANALYZING"
     SPECIFYING = "SPECIFYING"
@@ -115,6 +120,8 @@ class TaskResponse(BaseModel):
     context: ContextReceipt | None = None
     source_issue: GitHubIssueReceipt | None = None
     issue_analysis: IssueAnalysisArtifact | None = None
+    source_pull_request: GitHubPullRequestReceipt | None = None
+    pull_request_review: PullRequestReviewArtifact | None = None
     created_at: datetime
 
 

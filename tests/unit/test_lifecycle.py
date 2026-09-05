@@ -43,6 +43,7 @@ def test_lifecycle_wraps_actual_execution(
 
     class Result:
         result = {}
+        findings = []
         evidence = []
         confidence = 1.0
 
