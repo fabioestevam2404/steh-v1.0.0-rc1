@@ -8,6 +8,7 @@ from langgraph.types import Command
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.models import TaskRecord
 from app.models.contracts import TaskCreate, TaskStatus, utc_now
 from app.models.human_review import (
@@ -21,6 +22,7 @@ from app.orchestration.lifecycle import AgentLifecycle
 from app.services.audit import (
     record_event,
 )
+from app.services.context import ContextEngine, context_receipt
 from app.services.security import persist_security_findings
 
 logger = logging.getLogger("steh.tasks")
@@ -49,6 +51,7 @@ def _apply_workflow_result(
     record: TaskRecord,
     result: dict[str, Any],
 ) -> None:
+    record.context_bundle = result.get("context_bundle")
     record.requirements = result.get("requirements")
     record.specification = result.get("specification")
     record.architecture = result.get("architecture")
@@ -99,6 +102,22 @@ def execute_task(
     )
 
     try:
+        context_bundle = ContextEngine(
+            max_sources=settings.context_max_sources,
+            max_tokens=settings.context_max_tokens,
+            max_source_tokens=settings.context_max_source_tokens,
+        ).build(payload.request, payload.context_sources)
+        record.context_bundle = context_bundle.model_dump(mode="json")
+        db.commit()
+        record_event(
+            db,
+            task_id,
+            trace_id,
+            "CONTEXT_BUNDLE_CREATED",
+            "context_engine",
+            context_receipt(context_bundle).model_dump(mode="json"),
+        )
+
         lifecycle = AgentLifecycle(db, task_id, trace_id)
         graph = build_graph(lifecycle=lifecycle)
         result = graph.invoke(
@@ -107,6 +126,7 @@ def execute_task(
                 "trace_id": str(trace_id),
                 "user_request": payload.request,
                 "status": "ANALYZING",
+                "context_bundle": context_bundle.model_dump(mode="json"),
                 "evidence": [],
             },
             config={

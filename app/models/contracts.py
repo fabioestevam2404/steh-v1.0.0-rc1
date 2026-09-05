@@ -3,8 +3,9 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.models.context import ContextReceipt, ContextSourceInput
 from app.models.human_review import HumanReviewArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
@@ -12,6 +13,7 @@ from app.models.test_plan import TestPlan
 
 class TaskStatus(StrEnum):
     CREATED = "CREATED"
+    CONTEXTUALIZING = "CONTEXTUALIZING"
     ANALYZING = "ANALYZING"
     SPECIFYING = "SPECIFYING"
     ARCHITECTING = "ARCHITECTING"
@@ -33,6 +35,14 @@ class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     request: str = Field(min_length=10, max_length=10000)
+    context_sources: list[ContextSourceInput] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def reject_duplicate_context_sources(self) -> "TaskCreate":
+        identities = [(item.source_id, item.version) for item in self.context_sources]
+        if len(identities) != len(set(identities)):
+            raise ValueError("Context source_id and version pairs must be unique.")
+        return self
 
 
 class RequirementsResult(BaseModel):
@@ -100,6 +110,7 @@ class TaskResponse(BaseModel):
     external_scan: list[dict[str, Any]] | None = None
     rework_decision: dict[str, Any] | None = None
     human_review: HumanReviewArtifact | None = None
+    context: ContextReceipt | None = None
     created_at: datetime
 
 

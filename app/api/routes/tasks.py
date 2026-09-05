@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal, get_principal, require_reviewer
 from app.db.models import TaskRecord
 from app.db.session import get_db
+from app.models.context import ContextBundle
 from app.models.contracts import (
     ArchitectureResult,
     RequirementsResult,
@@ -19,6 +20,7 @@ from app.models.human_review import HumanReviewArtifact, HumanReviewDecision
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 from app.services.audit import get_task_audit, record_event
+from app.services.context import context_receipt
 from app.services.security import get_security_findings
 from app.services.tasks import (
     HumanReviewConflictError,
@@ -71,6 +73,11 @@ def _response(record: TaskRecord) -> TaskResponse:
         human_review=(
             HumanReviewArtifact.model_validate(record.human_review)
             if record.human_review is not None
+            else None
+        ),
+        context=(
+            context_receipt(ContextBundle.model_validate(record.context_bundle))
+            if record.context_bundle is not None
             else None
         ),
         created_at=record.created_at,
