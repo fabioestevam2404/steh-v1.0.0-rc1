@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.models.context import (
@@ -58,6 +59,26 @@ def _redact(value: str) -> tuple[str, bool]:
     return redacted, redacted != value
 
 
+@dataclass(frozen=True)
+class SanitizedContextText:
+    content: str
+    redacted: bool
+    suspicious_instruction: bool
+
+
+def sanitize_context_text(value: str) -> SanitizedContextText:
+    normalized = _normalize(value)
+    redacted_content, redacted = _redact(normalized)
+    lowered = redacted_content.casefold()
+    return SanitizedContextText(
+        content=redacted_content,
+        redacted=redacted,
+        suspicious_instruction=any(
+            marker in lowered for marker in _INSTRUCTION_MARKERS
+        ),
+    )
+
+
 class ContextEngine:
     def __init__(
         self,
@@ -93,20 +114,18 @@ class ContextEngine:
                 bundle_truncated = True
                 break
 
-            normalized = _normalize(source.content)
-            if not normalized:
+            sanitized = sanitize_context_text(source.content)
+            if not sanitized.content:
                 raise ValueError(
                     f"Context source {source.source_id!r} is empty after normalization."
                 )
-            safe_content, redacted = _redact(normalized)
             allowed_tokens = min(self.max_source_tokens, remaining_tokens)
             allowed_characters = allowed_tokens * 4
-            truncated = len(safe_content) > allowed_characters
-            content = safe_content[:allowed_characters]
+            truncated = len(sanitized.content) > allowed_characters
+            content = sanitized.content[:allowed_characters]
             token_estimate = _estimate_tokens(content)
             remaining_tokens -= token_estimate
             bundle_truncated = bundle_truncated or truncated
-            lowered = content.casefold()
 
             snapshots.append(
                 ContextSourceSnapshot(
@@ -119,10 +138,8 @@ class ContextEngine:
                     priority=source.priority,
                     metadata=source.metadata,
                     truncated=truncated,
-                    redacted=redacted,
-                    suspicious_instruction=any(
-                        marker in lowered for marker in _INSTRUCTION_MARKERS
-                    ),
+                    redacted=sanitized.redacted,
+                    suspicious_instruction=sanitized.suspicious_instruction,
                 )
             )
 
