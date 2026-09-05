@@ -55,7 +55,7 @@ does not bypass Policy Engine gates or grant the analysis agent authority to exe
 
 ## Persistence
 
-Migration `0009_patch_4e_github_issue_analysis` adds nullable `source_issue` and `issue_analysis`
+Migration `0009_patch_4e_issue_analysis` adds nullable `source_issue` and `issue_analysis`
 JSON columns to tasks. Existing tasks remain compatible.
 
 ## Consequences
