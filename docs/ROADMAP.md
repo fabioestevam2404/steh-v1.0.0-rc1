@@ -59,9 +59,9 @@
 - auditable Context Engine
 - read-only GitHub Issue Analysis
 - read-only GitHub Pull Request Review
+- auxiliary, versioned and non-authoritative LLM-as-Judge evaluation
 
 ## Planned for the next release candidate
 
-- auxiliary, non-authoritative LLM-as-Judge evaluation
 - post-integration security and operational hardening
 - updated acceptance evidence for the complete post-RC2 workflow

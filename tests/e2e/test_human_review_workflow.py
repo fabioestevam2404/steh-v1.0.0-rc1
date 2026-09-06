@@ -35,6 +35,8 @@ def test_human_approval_resumes_checkpoint_once() -> None:
         assert completed["human_review"]["reviewer"] == "local-development"
         assert completed["implementation"]
         assert completed["validation"]
+        assert completed["judge_evaluation"]["status"] == "COMPLETED"
+        assert completed["judge_evaluation"]["authoritative"] is False
 
         duplicate = client.post(
             f"/api/v1/tasks/{task_id}/human-review",
@@ -52,4 +54,13 @@ def test_human_approval_resumes_checkpoint_once() -> None:
             event["event_type"] == "HUMAN_REVIEW_DECIDED"
             and event["actor"] == "local-development"
             for event in events
+        )
+        assert any(
+            event["event_type"] == "JUDGE_EVALUATION"
+            and event["payload"]["authoritative"] is False
+            for event in events
+        )
+        assert any(
+            run["agent_name"] == "llm_judge_agent"
+            for run in audit.json()["agent_runs"]
         )

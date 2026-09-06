@@ -31,6 +31,8 @@ class EngineeringState(TypedDict, total=False):
 
     validation: dict[str, Any]
     test_run: dict[str, Any]
+    judge_evaluation: dict[str, Any]
+    judge_run: dict[str, Any]
     rework_count: int
     rework_decision: dict[str, Any]
     rework_history: list[dict[str, Any]]
