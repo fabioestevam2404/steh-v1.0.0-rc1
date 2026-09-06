@@ -1,9 +1,38 @@
 from datetime import UTC, datetime
 
+import pytest
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
+from app.agents.llm_judge import LLMJudgeAgent
+from app.core.config import settings
 from app.orchestration.graph import build_graph
+
+
+def _run_approved_workflow(thread_id: str) -> dict[str, object]:
+    graph = build_graph(checkpointer=MemorySaver())
+    config = {"configurable": {"thread_id": thread_id}}
+    graph.invoke(
+        {
+            "task_id": f"{thread_id}-task",
+            "trace_id": f"{thread_id}-trace",
+            "user_request": "Crie uma API segura para cadastro de clientes.",
+            "status": "ANALYZING",
+            "evidence": [],
+        },
+        config=config,
+    )
+    return graph.invoke(
+        Command(
+            resume={
+                "status": "APPROVED",
+                "reviewer": "security-reviewer",
+                "justification": "Risk accepted with compensating controls.",
+                "decided_at": datetime.now(UTC).isoformat(),
+            }
+        ),
+        config=config,
+    )
 
 
 def test_patch_4a_nodes_precede_implementation() -> None:
@@ -32,6 +61,17 @@ def test_validation_gate_can_return_to_implementation() -> None:
         edge.source == "validation_gate" and edge.target == "implementation"
         for edge in graph.edges
     )
+
+
+def test_judge_runs_only_after_successful_validation_gate() -> None:
+    graph = build_graph(checkpointer=MemorySaver()).get_graph()
+
+    assert "judge" in graph.nodes
+    assert any(
+        edge.source == "validation_gate" and edge.target == "judge"
+        for edge in graph.edges
+    )
+    assert any(edge.source == "judge" and edge.target == "__end__" for edge in graph.edges)
 
 
 def test_high_security_risk_prevents_implementation() -> None:
@@ -116,3 +156,37 @@ def test_approved_human_review_resumes_to_completion() -> None:
     assert result["test_plan"]
     assert result["implementation"]
     assert result["validation"]
+    assert result["judge_evaluation"]["status"] == "COMPLETED"
+    assert result["judge_evaluation"]["authoritative"] is False
+
+
+def test_disabled_judge_does_not_change_completed_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "judge_enabled", False)
+
+    result = _run_approved_workflow("judge-disabled")
+
+    assert result["status"] == "COMPLETED"
+    judge = result["judge_evaluation"]
+    assert isinstance(judge, dict)
+    assert judge["status"] == "SKIPPED"
+    assert judge["authoritative"] is False
+
+
+def test_unavailable_judge_does_not_change_completed_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable(*_: object) -> object:
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(LLMJudgeAgent, "run", unavailable)
+
+    result = _run_approved_workflow("judge-unavailable")
+
+    assert result["status"] == "COMPLETED"
+    judge = result["judge_evaluation"]
+    assert isinstance(judge, dict)
+    assert judge["status"] == "UNAVAILABLE"
+    assert judge["error_type"] == "RuntimeError"
+    assert judge["authoritative"] is False

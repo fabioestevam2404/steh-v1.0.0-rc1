@@ -8,6 +8,7 @@ from langgraph.types import interrupt
 
 from app.agents.architecture import ArchitectureAgent
 from app.agents.implementation import ImplementationAgent
+from app.agents.llm_judge import LLMJudgeAgent
 from app.agents.requirements import RequirementsAgent
 from app.agents.security import SecurityAgent
 from app.agents.specification import SpecificationAgent
@@ -21,6 +22,7 @@ from app.models.human_review import (
     HumanReviewResume,
     HumanReviewStatus,
 )
+from app.models.judge import JudgeEvaluationArtifact, JudgeEvaluationStatus
 from app.models.state import EngineeringState
 from app.orchestration.checkpoint import get_checkpointer
 from app.orchestration.lifecycle import AgentLifecycle
@@ -28,6 +30,13 @@ from app.orchestration.rework import ReworkController
 from app.policies.engine import PolicyEngine
 from app.policies.loader import load_policy_config
 from app.services.context import ContextEngine, context_receipt
+from app.services.judge import (
+    build_judge_input,
+    judge_artifacts,
+    judge_evaluation_receipt,
+    load_judge_rubric,
+    non_authoritative_judge_result,
+)
 
 StateUpdate = EngineeringState
 Workflow = CompiledStateGraph[
@@ -73,6 +82,11 @@ def build_graph(
     test_agent = TestAgent()
     test_planning_agent = TestPlanningAgent(
         settings.llm_mode, settings.llm_model, settings.openai_api_key
+    )
+    judge_agent = LLMJudgeAgent(
+        settings.judge_mode,
+        settings.judge_model,
+        settings.openai_api_key,
     )
 
     policy_engine = PolicyEngine(
@@ -564,11 +578,70 @@ def build_graph(
         }
 
     def route_after_validation(state: EngineeringState) -> str:
-        return (
-            "implementation"
-            if state.get("status") == "REWORK_REQUIRED"
-            else "end"
-        )
+        if state.get("status") == "REWORK_REQUIRED":
+            return "implementation"
+        if state.get("status") == "COMPLETED":
+            return "judge"
+        return "end"
+
+    def judge(state: EngineeringState) -> StateUpdate:
+        judge_input = build_judge_input({}, settings.judge_max_input_chars)
+        rubric = None
+        try:
+            judge_input = build_judge_input(
+                state,
+                settings.judge_max_input_chars,
+            )
+            rubric = load_judge_rubric(settings.judge_rubric_file)
+            if not settings.judge_enabled:
+                evaluation = non_authoritative_judge_result(
+                    JudgeEvaluationStatus.SKIPPED,
+                    judge_input,
+                    provider=settings.judge_mode,
+                    model=settings.judge_model,
+                    evaluated_at=datetime.now(UTC),
+                    rubric=rubric,
+                )
+                run: dict[str, Any] = {}
+            else:
+                def call() -> AgentResult:
+                    return judge_agent.run(
+                        rubric,
+                        judge_input,
+                        judge_artifacts(state),
+                    )
+
+                result = (
+                    lifecycle.execute(judge_agent.name, call)
+                    if lifecycle
+                    else call()
+                )
+                evaluation = JudgeEvaluationArtifact.model_validate(result.result)
+                run = result.model_dump(mode="json")
+        except Exception as exc:
+            evaluation = non_authoritative_judge_result(
+                JudgeEvaluationStatus.UNAVAILABLE,
+                judge_input,
+                provider=settings.judge_mode,
+                model=settings.judge_model,
+                evaluated_at=datetime.now(UTC),
+                error_type=type(exc).__name__,
+                rubric=rubric,
+            )
+            run = {}
+
+        return {
+            "judge_evaluation": evaluation.model_dump(mode="json"),
+            "judge_run": run,
+            "evidence": [
+                *state.get("evidence", []),
+                {
+                    "type": "judge_evaluation_receipt",
+                    **judge_evaluation_receipt(evaluation),
+                },
+            ],
+            "status": state.get("status", "COMPLETED"),
+        }
 
     def route_after_requirements(
         state: EngineeringState,
@@ -663,6 +736,8 @@ def build_graph(
         "validation_gate",
         validation_gate,
     )
+
+    builder.add_node("judge", judge)
 
     builder.add_node(
         "blocked",
@@ -770,9 +845,12 @@ def build_graph(
         route_after_validation,
         {
             "implementation": "implementation",
+            "judge": "judge",
             "end": END,
         },
     )
+
+    builder.add_edge("judge", END)
 
     builder.add_edge(
         "blocked",

@@ -17,12 +17,14 @@ from app.models.human_review import (
     HumanReviewResume,
     HumanReviewStatus,
 )
+from app.models.judge import JudgeEvaluationArtifact
 from app.orchestration.graph import build_graph
 from app.orchestration.lifecycle import AgentLifecycle
 from app.services.audit import (
     record_event,
 )
 from app.services.context import ContextEngine, context_receipt
+from app.services.judge import judge_evaluation_receipt
 from app.services.security import persist_security_findings
 
 logger = logging.getLogger("steh.tasks")
@@ -63,6 +65,7 @@ def _apply_workflow_result(
     record.rework_count = result.get("rework_count", 0)
     record.rework_decision = result.get("rework_decision")
     record.human_review = result.get("human_review")
+    record.judge_evaluation = result.get("judge_evaluation")
     record.status = result.get("status", "FAILED")
     record.updated_at = utc_now()
 
@@ -164,6 +167,19 @@ def execute_task(
                 "HUMAN_REVIEW_REQUESTED",
                 "orchestrator",
                 record.human_review,
+            )
+
+        if record.judge_evaluation:
+            evaluation = JudgeEvaluationArtifact.model_validate(
+                record.judge_evaluation
+            )
+            record_event(
+                db,
+                task_id,
+                trace_id,
+                "JUDGE_EVALUATION",
+                "llm_judge_agent",
+                judge_evaluation_receipt(evaluation),
             )
 
         final_event = {
@@ -321,6 +337,19 @@ def resume_human_review(
             "REWORK_DECISION",
             "rework_controller",
             rework_decision,
+        )
+
+    if record.judge_evaluation:
+        evaluation = JudgeEvaluationArtifact.model_validate(
+            record.judge_evaluation
+        )
+        record_event(
+            db,
+            task_id,
+            record.trace_id,
+            "JUDGE_EVALUATION",
+            "llm_judge_agent",
+            judge_evaluation_receipt(evaluation),
         )
 
     final_event = {

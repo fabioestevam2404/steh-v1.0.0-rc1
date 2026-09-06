@@ -12,6 +12,7 @@ from app.models.github_pull_request import (
     PullRequestReviewArtifact,
 )
 from app.models.human_review import HumanReviewArtifact
+from app.models.judge import JudgeEvaluationArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 
@@ -122,6 +123,7 @@ class TaskResponse(BaseModel):
     issue_analysis: IssueAnalysisArtifact | None = None
     source_pull_request: GitHubPullRequestReceipt | None = None
     pull_request_review: PullRequestReviewArtifact | None = None
+    judge_evaluation: JudgeEvaluationArtifact | None = None
     created_at: datetime
 
 

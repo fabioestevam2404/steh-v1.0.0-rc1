@@ -41,6 +41,10 @@ class TaskRecord(Base):
     external_scan: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     rework_decision: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     human_review: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    judge_evaluation: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

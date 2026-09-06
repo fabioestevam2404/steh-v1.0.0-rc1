@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     context_max_tokens: int = Field(default=4000, ge=128, le=50000)
     context_max_source_tokens: int = Field(default=2000, ge=64, le=25000)
 
+    judge_enabled: bool = True
+    judge_mode: str = Field(default="stub", pattern="^(stub|openai)$")
+    judge_model: str = "gpt-5-mini"
+    judge_rubric_file: str = "policies/judge-rubric.yaml"
+    judge_max_input_chars: int = Field(default=60000, ge=1000, le=200000)
+
     github_api_url: str = "https://api.github.com"
     github_api_version: str = Field(
         default="2026-03-10",

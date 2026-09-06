@@ -27,6 +27,7 @@ from app.models.github_pull_request import (
     PullRequestReviewArtifact,
 )
 from app.models.human_review import HumanReviewArtifact, HumanReviewDecision
+from app.models.judge import JudgeEvaluationArtifact
 from app.models.specification import SoftwareSpecification
 from app.models.test_plan import TestPlan
 from app.services.audit import get_task_audit, record_event
@@ -144,6 +145,11 @@ def _response(record: TaskRecord) -> TaskResponse:
                 record.pull_request_review
             )
             if record.pull_request_review is not None
+            else None
+        ),
+        judge_evaluation=(
+            JudgeEvaluationArtifact.model_validate(record.judge_evaluation)
+            if record.judge_evaluation is not None
             else None
         ),
         created_at=record.created_at,

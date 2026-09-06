@@ -1,0 +1,46 @@
+version: "1.0"
+pass_score: 85
+concern_score: 70
+
+criteria:
+  - id: JUDGE-REQ-001
+    dimension: REQUIREMENTS
+    artifact: requirements
+    description: Requirements identify behavior, quality attributes, acceptance criteria and open questions.
+    weight: 0.15
+
+  - id: JUDGE-SPEC-001
+    dimension: SPECIFICATION
+    artifact: specification
+    description: The specification is structured, traceable and supported by Given/When/Then scenarios.
+    weight: 0.20
+
+  - id: JUDGE-ARCH-001
+    dimension: ARCHITECTURE
+    artifact: architecture
+    description: Architecture decisions cover components, data flow, security, scalability and observability.
+    weight: 0.15
+
+  - id: JUDGE-SEC-001
+    dimension: SECURITY
+    artifact: security_review
+    description: Threats, controls, security requirements and residual risk are explicit and consistent.
+    weight: 0.20
+
+  - id: JUDGE-TEST-001
+    dimension: TESTING
+    artifact: test_plan
+    description: The test plan traces requirements and includes negative security coverage.
+    weight: 0.10
+
+  - id: JUDGE-IMPL-001
+    dimension: IMPLEMENTATION
+    artifact: implementation
+    description: The implementation artifact is bounded, traceable and reports tool execution outcomes.
+    weight: 0.10
+
+  - id: JUDGE-VAL-001
+    dimension: VALIDATION
+    artifact: validation
+    description: Controlled tests and scanners provide sufficient evidence for the reported result.
+    weight: 0.10
