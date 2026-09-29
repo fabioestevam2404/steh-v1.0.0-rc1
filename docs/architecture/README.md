@@ -3,7 +3,7 @@
 Baseline arquitetural atual:
 
 ```text
-v0.2.1-alpha
+v1.0.0-rc2 (main contém entregas pós-RC2; ver ADR-009 a ADR-015)
 ```
 
 Princípio do STEH:

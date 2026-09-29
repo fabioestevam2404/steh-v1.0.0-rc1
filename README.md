@@ -10,7 +10,7 @@ O STEH é uma plataforma de engenharia de software assistida por IA orientada a 
 v1.0.0-rc2
 ```
 
-O código executável na raiz do repositório representa a versão operacional mais recente.
+O código executável na raiz do repositório representa a versão operacional mais recente. O `main` já contém entregas posteriores ao RC2, listadas na seção `[Unreleased]` do `CHANGELOG.md`.
 
 ## Evolução
 
@@ -39,7 +39,16 @@ Alpha 0.5
 Test Agent + Security Scanners + Rework Loop
         |
         v
-MVP 1.0
+v1.0.0-rc1 / rc2
+Release candidates: auth, métricas e evidência reproduzível
+        |
+        v
+Pós-RC2 (main, sem tag)
+SDD + Test Plan, rework no grafo, HITL, Context Engine,
+GitHub Issue/PR (read-only), LLM-as-Judge
+        |
+        v
+v1.0.0-rc3 -> MVP 1.0
 ```
 
 ## Releases
@@ -55,6 +64,7 @@ MVP 1.0
 | `v0.5.1-alpha` | Containerized Scanners + Bounded Rework | Histórica |
 | `v1.0.0-rc1` | MVP Release Candidate hardening and verification | Histórica |
 | `v1.0.0-rc2` | Baseline executável, tipada e validada com evidência reproduzível | **Baseline** |
+| `main` (sem tag) | Entregas pós-RC2, ver `[Unreleased]` no `CHANGELOG.md` | Em desenvolvimento |
 
 As releases não são instaladas sequencialmente. Para executar o estado atual, use diretamente a raiz deste repositório.
 
@@ -103,14 +113,8 @@ http://localhost:8000/docs
 http://localhost:8000/health
 ```
 
-## Histórico no Git
+## Contribuindo
 
-Ao publicar no GitHub, preserve milestones por tags:
+Fluxo trunk-based: branches curtos (`feature/*`, `fix/*`, `docs/*`, ...) a partir do `main`, PR com CI verde e merge. Releases são tags anotadas `vX.Y.Z-rcN` no `main`.
 
-```bash
-git tag -a v0.1.0-alpha -m "STEH Alpha 0.1"
-git tag -a v0.2.0-alpha -m "STEH Alpha 0.2"
-git tag -a v0.2.1-alpha -m "STEH Alpha 0.2.1"
-```
-
-Consulte `docs/GIT_WORKFLOW.md`, `docs/VERSIONING.md` e `CHANGELOG.md`.
+Consulte `docs/GIT_WORKFLOW.md`, `docs/VERSIONING.md`, `CHANGELOG.md`, `docs/ROADMAP.md` e `docs/HANDOFF.md`.

@@ -58,8 +58,8 @@ python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evide
 1. ~~**CHANGELOG defasado.**~~ Seção `[Unreleased]` criada no PR #13. Falta, no próximo RC, subir `VERSION`, `app/version.py`, `pyproject.toml` e o teste `test_health_reports_application_version` juntos.
 2. **Formatação sem gate.** `ruff format --check .` aponta **55 arquivos** fora do padrão. O RC-14 só roda `ruff check`. Sugestão: um PR que só formata, sem mudança de lógica, e depois um gate `ruff format --check`.
 3. **Branches já mergeados:** `feature/github-issue-analysis`, `feature/hitl-resume` e `feature/pr-review-agent` estão 0 commits à frente do `main` e podem ser apagados.
-4. **`docs/GIT_WORKFLOW.md` desatualizado.** Cita um branch `develop`, que não existe, e exemplos de branches da Alpha 0.3. O CI também dispara em `develop`. Sugestão: alinhar o documento ao fluxo real (`main` + `feature/*` / `fix/*` + PR).
-5. **README desatualizado.** O diagrama de evolução para em "MVP 1.0" e não cita as entregas pós-RC2.
+4. ~~**`docs/GIT_WORKFLOW.md` desatualizado.**~~ Reescrito com o fluxo real (trunk-based + PR + tags de RC), e `develop` removido do gatilho do CI.
+5. ~~**README desatualizado.**~~ Diagrama de evolução e tabela de releases passam a citar as entregas pós-RC2; `docs/architecture/README.md` deixa de apontar a `v0.2.1-alpha` como baseline.
 6. **Critério RC-16** (CI verde no commit candidato, com o artefato JSON) precisa ser cumprido de novo no commit que virar o próximo RC.
 
 ### Dívidas técnicas para o hardening do RC3
@@ -78,7 +78,7 @@ Pelo `docs/ROADMAP.md`: o **próximo release candidate** traz hardening de segur
 
 Ordem sugerida:
 
-1. Resolver as pendências 2 a 5 em PRs pequenos.
+1. Resolver as pendências 2 e 3 (formatação e branches mergeados).
 2. Revisar `docs/MVP-1.0-RC-ACCEPTANCE.md` para cobrir SDD, rework, HITL, Context Engine, GitHub Issue/PR e Judge.
 3. Fazer o hardening de segurança e operação, incluindo as dívidas 7 a 9 (e a 11, se couber).
 4. Tag `v1.0.0-rc3`, com CI verde e o artefato de evidência do commit exato.
