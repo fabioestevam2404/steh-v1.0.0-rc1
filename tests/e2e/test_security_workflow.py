@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,16 +7,17 @@ from app.main import app
 
 
 @pytest.mark.e2e
-def test_security_layer_end_to_end() -> None:
+def test_security_layer_end_to_end(drain_jobs: Callable[[], int]) -> None:
     with TestClient(app) as client:
         created = client.post(
             "/api/v1/tasks",
             json={"request": ("Crie uma API segura e auditável para cadastro de clientes.")},
         )
 
-        assert created.status_code == 201
+        assert created.status_code == 202
+        drain_jobs()
 
-        payload = created.json()
+        payload = client.get(f"/api/v1/tasks/{created.json()['task_id']}").json()
         assert payload["requirements"]
         assert payload["specification"]
         assert payload["architecture"]

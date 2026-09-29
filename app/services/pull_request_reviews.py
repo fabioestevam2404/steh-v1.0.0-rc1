@@ -1,6 +1,7 @@
 import hashlib
 import json
 from typing import NoReturn
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,7 @@ from app.orchestration.lifecycle import AgentLifecycle
 from app.services.audit import record_event
 from app.services.context import ContextEngine, context_receipt, sanitize_context_text
 from app.services.github_pull_requests import GitHubPullRequestReader
+from app.services.jobs import JobKind, new_job, record_job_queued
 
 
 def _sha256(value: str) -> str:
@@ -203,11 +205,12 @@ def _fail_task(
     raise error
 
 
-def create_pull_request_review(
+def accept_pull_request_review(
     db: Session,
     reference: GitHubPullRequestReference,
     reader: GitHubPullRequestReader,
 ) -> TaskRecord:
+    """Fetch and persist a sanitized pull-request snapshot, then queue the review (ADR-016)."""
     fetched = reader.fetch(reference)
     pull_request = sanitize_github_pull_request(
         fetched,
@@ -221,10 +224,15 @@ def create_pull_request_review(
             f"Review GitHub pull request {pull_request.repository}"
             f"#{pull_request.pull_number}: {pull_request.title}"
         )[:10000],
-        status=TaskStatus.ANALYZING_PULL_REQUEST,
+        status=TaskStatus.QUEUED,
         source_pull_request=pull_request.model_dump(mode="json"),
     )
+    job = new_job(record, JobKind.REVIEW_PULL_REQUEST)
+    # Flush the task first: without a relationship, SQLAlchemy does not order
+    # the inserts by the foreign key. Both rows still commit atomically.
     db.add(record)
+    db.flush()
+    db.add(job)
     db.commit()
     record_event(
         db,
@@ -242,6 +250,22 @@ def create_pull_request_review(
         "github_pull_request_client",
         github_pull_request_receipt(pull_request).model_dump(mode="json"),
     )
+
+    record_job_queued(db, record, job)
+    db.refresh(record)
+    return record
+
+
+def run_pull_request_review(db: Session, task_id: UUID) -> TaskRecord:
+    record = db.get(TaskRecord, task_id)
+    if record is None or record.source_pull_request is None:
+        raise ValueError("Pull request review task not found")
+
+    pull_request = GitHubPullRequestSnapshot.model_validate(record.source_pull_request)
+    trace_id = record.trace_id
+    record.status = TaskStatus.ANALYZING_PULL_REQUEST
+    record.updated_at = utc_now()
+    db.commit()
 
     try:
         context = ContextEngine(

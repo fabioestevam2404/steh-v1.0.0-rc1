@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,14 +7,15 @@ from app.main import app
 
 
 @pytest.mark.e2e
-def test_human_approval_resumes_checkpoint_once() -> None:
+def test_human_approval_resumes_checkpoint_once(drain_jobs: Callable[[], int]) -> None:
     with TestClient(app) as client:
         created = client.post(
             "/api/v1/tasks",
             json={"request": ("Crie uma API segura e auditável para cadastro de clientes.")},
         )
-        assert created.status_code == 201
-        pending = created.json()
+        assert created.status_code == 202
+        drain_jobs()
+        pending = client.get(f"/api/v1/tasks/{created.json()['task_id']}").json()
         assert pending["status"] == "HUMAN_REVIEW"
         assert pending["human_review"]["status"] == "PENDING"
 
@@ -24,8 +27,20 @@ def test_human_approval_resumes_checkpoint_once() -> None:
                 "justification": "Risk accepted with compensating controls.",
             },
         )
-        assert approved.status_code == 200
-        completed = approved.json()
+        assert approved.status_code == 202
+        assert approved.json()["status"] == "RESUMING"
+
+        duplicate_while_queued = client.post(
+            f"/api/v1/tasks/{task_id}/human-review",
+            json={
+                "decision": "REJECT",
+                "justification": "A second decision must not be accepted.",
+            },
+        )
+        assert duplicate_while_queued.status_code == 409
+
+        drain_jobs()
+        completed = client.get(f"/api/v1/tasks/{task_id}").json()
         assert completed["status"] == "COMPLETED"
         assert completed["human_review"]["status"] == "APPROVED"
         assert completed["human_review"]["reviewer"] == "local-development"

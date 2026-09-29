@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -24,7 +25,9 @@ class FakeGitHubIssueReader:
 
 
 @pytest.mark.e2e
-def test_github_issue_creates_auditable_context_backed_task() -> None:
+def test_github_issue_creates_auditable_context_backed_task(
+    drain_jobs: Callable[[], int],
+) -> None:
     app.dependency_overrides[get_github_issue_reader] = FakeGitHubIssueReader
     try:
         with TestClient(app) as client:
@@ -39,8 +42,10 @@ def test_github_issue_creates_auditable_context_backed_task() -> None:
                 },
             )
 
-            assert created.status_code == 201
-            payload = created.json()
+            assert created.status_code == 202
+            assert created.json()["status"] == "QUEUED"
+            drain_jobs()
+            payload = client.get(created.headers["location"]).json()
             assert payload["status"] == "HUMAN_REVIEW"
             assert payload["source_issue"]["issue_number"] == 42
             assert payload["source_issue"]["redacted"] is True

@@ -106,12 +106,20 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
+O Compose sobe `postgres`, `migrate` (aplica as migrações e encerra), `api` e `worker`.
+
 Depois:
 
 ```text
 http://localhost:8000/docs
 http://localhost:8000/health
 ```
+
+### Execução assíncrona
+
+Os endpoints que executam agentes respondem `202 Accepted` com o header `Location`. O processamento acontece no `worker`, e o cliente acompanha a tarefa por `GET /api/v1/tasks/{task_id}` até um status terminal ou de espera (`COMPLETED`, `BLOCKED`, `HUMAN_REVIEW`, `REWORK_EXHAUSTED`, `FAILED`). Sem worker rodando, as tarefas ficam em `QUEUED`. Detalhes em `docs/ADR-016-ASYNC-TASK-EXECUTION.md`.
+
+Para mais vazão, rode mais réplicas do worker: `docker compose up --scale worker=3`.
 
 ## Contribuindo
 

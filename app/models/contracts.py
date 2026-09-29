@@ -19,6 +19,7 @@ from app.models.test_plan import TestPlan
 
 class TaskStatus(StrEnum):
     CREATED = "CREATED"
+    QUEUED = "QUEUED"
     ANALYZING_ISSUE = "ANALYZING_ISSUE"
     ANALYZING_PULL_REQUEST = "ANALYZING_PULL_REQUEST"
     CONTEXTUALIZING = "CONTEXTUALIZING"

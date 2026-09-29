@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -59,7 +60,9 @@ class FakeGitHubPullRequestReader:
 
 
 @pytest.mark.e2e
-def test_pull_request_review_is_read_only_context_backed_and_auditable() -> None:
+def test_pull_request_review_is_read_only_context_backed_and_auditable(
+    drain_jobs: Callable[[], int],
+) -> None:
     app.dependency_overrides[get_github_pull_request_reader] = FakeGitHubPullRequestReader
     try:
         with TestClient(app) as client:
@@ -74,8 +77,10 @@ def test_pull_request_review_is_read_only_context_backed_and_auditable() -> None
                 },
             )
 
-            assert created.status_code == 201
-            payload = created.json()
+            assert created.status_code == 202
+            assert created.json()["status"] == "QUEUED"
+            drain_jobs()
+            payload = client.get(created.headers["location"]).json()
             assert payload["status"] == "COMPLETED"
             assert payload["source_pull_request"]["pull_number"] == 17
             assert payload["source_pull_request"]["redacted"] is True

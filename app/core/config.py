@@ -52,6 +52,9 @@ class Settings(BaseSettings):
 
     policy_file: str = "policies/quality-gates.yaml"
 
+    worker_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=60.0)
+    worker_lease_seconds: int = Field(default=300, ge=30, le=3600)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
