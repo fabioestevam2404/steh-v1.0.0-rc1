@@ -79,7 +79,7 @@ Pelo `docs/ROADMAP.md`: o **próximo release candidate** traz hardening de segur
 Ordem sugerida:
 
 1. Resolver as pendências 2 e 3 (formatação e branches mergeados).
-2. Revisar `docs/MVP-1.0-RC-ACCEPTANCE.md` para cobrir SDD, rework, HITL, Context Engine, GitHub Issue/PR e Judge.
+2. ~~Revisar `docs/MVP-1.0-RC-ACCEPTANCE.md`~~ Feito: critérios RC-17 a RC-25 (pós-RC2), cada um com gate próprio no `validate_rc.py` (28 gates no total).
 3. Fazer o hardening de segurança e operação, incluindo as dívidas 7 a 9 (e a 11, se couber).
 4. Tag `v1.0.0-rc3`, com CI verde e o artefato de evidência do commit exato.
 5. Promover a `v1.0.0` só se todos os critérios tiverem evidência daquele commit, conforme a regra de promoção do documento de aceite.
