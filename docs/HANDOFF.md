@@ -55,12 +55,22 @@ python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evide
 
 ## 4. Pendências encontradas
 
-1. **Versão e CHANGELOG defasados.** O `CHANGELOG.md` termina no RC2, e as 7 entregas da seção 1 não aparecem em lugar nenhum. Sugestão: criar uma seção `[Unreleased]` agora e, no próximo RC, subir `VERSION`, `app/version.py`, `pyproject.toml` e o teste `test_health_reports_application_version` juntos.
+1. ~~**CHANGELOG defasado.**~~ Seção `[Unreleased]` criada no PR #13. Falta, no próximo RC, subir `VERSION`, `app/version.py`, `pyproject.toml` e o teste `test_health_reports_application_version` juntos.
 2. **Formatação sem gate.** `ruff format --check .` aponta **55 arquivos** fora do padrão. O RC-14 só roda `ruff check`. Sugestão: um PR que só formata, sem mudança de lógica, e depois um gate `ruff format --check`.
 3. **Branches já mergeados:** `feature/github-issue-analysis`, `feature/hitl-resume` e `feature/pr-review-agent` estão 0 commits à frente do `main` e podem ser apagados.
 4. **`docs/GIT_WORKFLOW.md` desatualizado.** Cita um branch `develop`, que não existe, e exemplos de branches da Alpha 0.3. O CI também dispara em `develop`. Sugestão: alinhar o documento ao fluxo real (`main` + `feature/*` / `fix/*` + PR).
 5. **README desatualizado.** O diagrama de evolução para em "MVP 1.0" e não cita as entregas pós-RC2.
 6. **Critério RC-16** (CI verde no commit candidato, com o artefato JSON) precisa ser cumprido de novo no commit que virar o próximo RC.
+
+### Dívidas técnicas para o hardening do RC3
+
+Levantadas em 2026-09-29, ao conferir o código contra a lista de problemas da Alpha 0.1.
+
+7. **`POST /api/v1/tasks` é síncrono.** `create_task` chama `execute_task` dentro da requisição e só responde quando o workflow inteiro termina (até 9 agentes, com rework). Com `LLM_MODE=openai`, isso arrisca timeout de cliente e de proxy, e segura um worker por tarefa. Sugestão: responder `202 Accepted` com status `CREATED` e executar em background (`BackgroundTasks` agora, fila ou worker depois); o cliente acompanha por `GET /tasks/{id}`. **Muda o contrato da API e os E2E**, então precisa de ADR próprio.
+8. **Logs com pouca cobertura.** O `JsonFormatter` já existe, mas o app só emite 3 logs (`workflow_started`, `workflow_completed`, `workflow_failed`), e o `trace_id` é passado à mão em cada `extra=`. Sugestão: guardar `task_id` e `trace_id` em `contextvars`, injetá-los com um `logging.Filter` e registrar `agent_started` / `agent_completed` (com `duration_ms`) no `lifecycle`, em paralelo aos audit events.
+9. **Objetos globais criados na importação.** `settings = get_settings()` (importado direto por 10 módulos) e o `engine` / `SessionLocal` em `app/db/session.py` nascem no import; o `/ready` usa o `SessionLocal` sem `Depends`. Hoje não quebra nada (o `conftest.py` define as URLs), mas dificulta testar com outra configuração ou com um banco falso. Sugestão: `get_settings()` e `get_session()` via `Depends`, trocáveis por `app.dependency_overrides`. Fazer depois do PR de formatação, para o diff ficar legível.
+10. ~~**`app/db/init_db.py` morto**~~ (`create_all` fora do Alembic, sem nenhum chamador). Removido no mesmo PR que adicionou esta seção.
+11. **Prompts só no código.** A pasta `prompts/` foi removida e cada agente tem o prompt inline. Não há duplicação, mas mudar um prompt exige mudar código e não há versão nem hash do prompt na evidência (ao contrário da rubrica do Judge). Baixa prioridade; avaliar junto com a evidência de aceite do RC3.
 
 ## 5. Próximo marco
 
@@ -68,9 +78,9 @@ Pelo `docs/ROADMAP.md`: o **próximo release candidate** traz hardening de segur
 
 Ordem sugerida:
 
-1. Resolver as pendências 1 a 5 em PRs pequenos.
+1. Resolver as pendências 2 a 5 em PRs pequenos.
 2. Revisar `docs/MVP-1.0-RC-ACCEPTANCE.md` para cobrir SDD, rework, HITL, Context Engine, GitHub Issue/PR e Judge.
-3. Fazer o hardening de segurança e operação.
+3. Fazer o hardening de segurança e operação, incluindo as dívidas 7 a 9 (e a 11, se couber).
 4. Tag `v1.0.0-rc3`, com CI verde e o artefato de evidência do commit exato.
 5. Promover a `v1.0.0` só se todos os critérios tiverem evidência daquele commit, conforme a regra de promoção do documento de aceite.
 
