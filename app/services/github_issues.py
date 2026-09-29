@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.agents.github_issue_analysis import GitHubIssueAnalysisAgent
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import TaskRecord
 from app.models.context import ContextKind, ContextSourceInput
 from app.models.contracts import TaskStatus, ids, utc_now
@@ -176,6 +176,7 @@ def accept_github_issue(
     reader: GitHubIssueReader,
 ) -> TaskRecord:
     """Fetch and persist a sanitized issue snapshot, then queue its analysis (ADR-016)."""
+    settings = get_settings()
     fetched = reader.fetch(reference)
     issue = sanitize_github_issue(
         fetched,
@@ -219,6 +220,7 @@ def accept_github_issue(
 
 
 def run_github_issue_analysis(db: Session, task_id: UUID) -> TaskRecord:
+    settings = get_settings()
     record = db.get(TaskRecord, task_id)
     if record is None or record.source_issue is None:
         raise ValueError("GitHub issue task not found")

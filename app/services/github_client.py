@@ -3,7 +3,7 @@ from typing import Protocol
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.models.github_issue import FetchedGitHubIssue, GitHubIssueReference
 
 
@@ -125,6 +125,7 @@ def _allowed_repositories(value: str) -> frozenset[str]:
 
 
 def get_github_issue_reader() -> GitHubIssueReader:
+    settings = get_settings()
     token = settings.github_token.get_secret_value() if settings.github_token is not None else None
     return GitHubIssueClient(
         base_url=settings.github_api_url,

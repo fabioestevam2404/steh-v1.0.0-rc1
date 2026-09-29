@@ -8,7 +8,7 @@ from langgraph.types import Command
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import TaskRecord
 from app.models.context import ContextBundle, ContextSourceInput
 from app.models.contracts import TaskCreate, TaskStatus, ids, utc_now
@@ -76,6 +76,7 @@ def build_context_bundle(
     request: str,
     sources: list[ContextSourceInput],
 ) -> ContextBundle:
+    settings = get_settings()
     return ContextEngine(
         max_sources=settings.context_max_sources,
         max_tokens=settings.context_max_tokens,

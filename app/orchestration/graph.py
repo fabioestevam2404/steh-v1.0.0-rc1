@@ -14,7 +14,7 @@ from app.agents.security import SecurityAgent
 from app.agents.specification import SpecificationAgent
 from app.agents.test_engineer import TestAgent
 from app.agents.test_planning import TestPlanningAgent
-from app.core.config import settings
+from app.core.config import get_settings
 from app.models.context import ContextBundle
 from app.models.contracts import AgentResult
 from app.models.human_review import (
@@ -51,6 +51,7 @@ def build_graph(
     lifecycle: AgentLifecycle | None = None,
     checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> Workflow:
+    settings = get_settings()
     requirements_agent = RequirementsAgent(
         settings.llm_mode,
         settings.llm_model,

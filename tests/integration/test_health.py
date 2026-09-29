@@ -1,6 +1,7 @@
 import pytest
 
 from app.api.routes.health import health, ready
+from app.db.session import new_session
 
 
 def test_health_reports_application_version() -> None:
@@ -12,4 +13,5 @@ def test_health_reports_application_version() -> None:
 
 @pytest.mark.integration
 def test_readiness_checks_database() -> None:
-    assert ready() == {"status": "ready", "database": "ok"}
+    with new_session() as db:
+        assert ready(db) == {"status": "ready", "database": "ok"}

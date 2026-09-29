@@ -1,12 +1,13 @@
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 _checkpointer_cm = None
 _checkpointer = None
 
 
 def init_checkpointer() -> PostgresSaver:
+    settings = get_settings()
     global _checkpointer_cm, _checkpointer
 
     if _checkpointer is not None:

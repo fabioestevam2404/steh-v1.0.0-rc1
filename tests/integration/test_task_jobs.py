@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.core.logging import build_handler
 from app.db.models import AuditEventRecord, TaskJobRecord, TaskRecord
-from app.db.session import SessionLocal
+from app.db.session import new_session
 from app.models.contracts import TaskStatus, ids, utc_now
 from app.services.jobs import (
     LEASE_EXPIRED,
@@ -24,7 +24,7 @@ from app.worker import process_job
 
 def _new_task() -> TaskRecord:
     task_id, trace_id = ids()
-    with SessionLocal() as db:
+    with new_session() as db:
         record = TaskRecord(
             task_id=task_id,
             trace_id=trace_id,
@@ -39,7 +39,7 @@ def _new_task() -> TaskRecord:
 
 
 def _event_types(task_id: object) -> set[str]:
-    with SessionLocal() as db:
+    with new_session() as db:
         return set(
             db.execute(
                 select(AuditEventRecord.event_type).where(AuditEventRecord.task_id == task_id)
@@ -49,7 +49,7 @@ def _event_types(task_id: object) -> set[str]:
 
 def _drain_queued() -> None:
     """Keep these tests independent of jobs left over by other tests."""
-    with SessionLocal() as db:
+    with new_session() as db:
         for job in db.execute(
             select(TaskJobRecord).where(TaskJobRecord.status == JobStatus.QUEUED)
         ).scalars():
@@ -62,12 +62,12 @@ def _drain_queued() -> None:
 def test_concurrent_workers_skip_locked_jobs() -> None:
     _drain_queued()
     first_task, second_task = _new_task(), _new_task()
-    with SessionLocal() as db:
+    with new_session() as db:
         first = enqueue_job(db, db.merge(first_task), JobKind.EXECUTE_TASK)
         second = enqueue_job(db, db.merge(second_task), JobKind.EXECUTE_TASK)
         first_id, second_id = first.job_id, second.job_id
 
-    with SessionLocal() as holder, SessionLocal() as other:
+    with new_session() as holder, new_session() as other:
         locked = holder.execute(
             select(TaskJobRecord).where(TaskJobRecord.job_id == first_id).with_for_update()
         ).scalar_one()
@@ -87,7 +87,7 @@ def test_concurrent_workers_skip_locked_jobs() -> None:
 def test_expired_lease_abandons_task_without_retry() -> None:
     _drain_queued()
     task = _new_task()
-    with SessionLocal() as db:
+    with new_session() as db:
         job = enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK)
         claimed = claim_next_job(db, "worker-dead", lease_seconds=60)
         assert claimed is not None and claimed.job_id == job.job_id
@@ -113,7 +113,7 @@ def test_expired_lease_abandons_task_without_retry() -> None:
 def test_failed_job_marks_task_failed_and_records_error_type() -> None:
     _drain_queued()
     task = _new_task()
-    with SessionLocal() as db:
+    with new_session() as db:
         # No context bundle was persisted, so the workflow handler must fail.
         enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK)
         job = claim_next_job(db, "worker-a", lease_seconds=60)
@@ -139,7 +139,7 @@ def test_failed_job_marks_task_failed_and_records_error_type() -> None:
 def test_lease_renewal_requires_owning_worker() -> None:
     _drain_queued()
     task = _new_task()
-    with SessionLocal() as db:
+    with new_session() as db:
         enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK)
         job = claim_next_job(db, "worker-owner", lease_seconds=30)
         assert job is not None
@@ -165,7 +165,7 @@ def test_worker_logs_carry_task_trace_and_job_ids() -> None:
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
     try:
-        with SessionLocal() as db:
+        with new_session() as db:
             queued_id = enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK).job_id
             job = claim_next_job(db, "worker-logs", lease_seconds=60)
             assert job is not None and job.job_id == queued_id

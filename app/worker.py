@@ -16,10 +16,10 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.core.logging import configure_logging, log_context
 from app.db.models import TaskJobRecord, TaskRecord
-from app.db.session import SessionLocal
+from app.db.session import new_session
 from app.models.contracts import TaskStatus, utc_now
 from app.orchestration.checkpoint import close_checkpointer, init_checkpointer
 from app.services.audit import record_event
@@ -115,7 +115,7 @@ def process_job(
     job: TaskJobRecord,
     worker_id: str,
     lease_seconds: int,
-    session_factory: SessionFactory = SessionLocal,
+    session_factory: SessionFactory = new_session,
 ) -> JobStatus:
     job_id, task_id = job.job_id, job.task_id
     task = db.get(TaskRecord, task_id)
@@ -178,10 +178,11 @@ def _run_job(
 
 def run_once(
     worker_id: str | None = None,
-    session_factory: SessionFactory = SessionLocal,
+    session_factory: SessionFactory = new_session,
     lease_seconds: int | None = None,
 ) -> bool:
     """Process at most one job. Returns False when the queue is empty."""
+    settings = get_settings()
     worker_id = worker_id or default_worker_id()
     lease = lease_seconds or settings.worker_lease_seconds
 
@@ -195,6 +196,7 @@ def run_once(
 
 
 def run_forever(poll_interval: float | None = None) -> None:
+    settings = get_settings()
     worker_id = default_worker_id()
     interval = poll_interval or settings.worker_poll_interval_seconds
     stopping = threading.Event()
@@ -218,6 +220,7 @@ def run_forever(poll_interval: float | None = None) -> None:
 
 
 def main() -> None:
+    settings = get_settings()
     configure_logging(settings.log_level)
     init_checkpointer()
     try:

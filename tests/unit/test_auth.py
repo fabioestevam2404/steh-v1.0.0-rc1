@@ -5,19 +5,20 @@ import pytest
 from fastapi import HTTPException
 
 from app.core import auth
+from app.core.config import get_settings
 
 TEST_JWT_SECRET = "test-secret-with-at-least-32-bytes"
 
 
 def test_local_mode_returns_development_principal(monkeypatch):
-    monkeypatch.setattr(auth.settings, "auth_enabled", False)
+    monkeypatch.setattr(get_settings(), "auth_enabled", False)
     p = auth.get_principal(None)
     assert "steh_user" in p.roles
     assert "steh_reviewer" in p.roles
 
 
 def test_reviewer_role_is_required(monkeypatch):
-    monkeypatch.setattr(auth.settings, "auth_reviewer_role", "steh_reviewer")
+    monkeypatch.setattr(get_settings(), "auth_reviewer_role", "steh_reviewer")
     principal = auth.Principal(subject="user", roles=("steh_user",))
 
     with pytest.raises(HTTPException) as exc:
@@ -27,15 +28,15 @@ def test_reviewer_role_is_required(monkeypatch):
 
 
 def test_auth_enabled_rejects_missing_token(monkeypatch):
-    monkeypatch.setattr(auth.settings, "auth_enabled", True)
+    monkeypatch.setattr(get_settings(), "auth_enabled", True)
     with pytest.raises(HTTPException) as exc:
         auth.get_principal(None)
     assert exc.value.status_code == 401
 
 
 def test_role_is_required(monkeypatch):
-    monkeypatch.setattr(auth.settings, "auth_enabled", True)
-    monkeypatch.setattr(auth.settings, "auth_jwt_secret", TEST_JWT_SECRET)
+    monkeypatch.setattr(get_settings(), "auth_enabled", True)
+    monkeypatch.setattr(get_settings(), "auth_jwt_secret", TEST_JWT_SECRET)
     token = jwt.encode(
         {
             "sub": "user",

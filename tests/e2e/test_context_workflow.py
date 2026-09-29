@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.db.models import TaskJobRecord
-from app.db.session import SessionLocal
+from app.db.session import new_session
 from app.main import app
 
 
@@ -54,7 +54,7 @@ def test_context_bundle_is_persisted_and_audited_without_raw_content(
         assert context_events[0]["payload"]["bundle_id"] == payload["context"]["bundle_id"]
         assert secret not in str(context_events)
 
-        with SessionLocal() as db:
+        with new_session() as db:
             job_payloads = list(
                 db.execute(
                     select(TaskJobRecord.payload).where(TaskJobRecord.task_id == payload["task_id"])

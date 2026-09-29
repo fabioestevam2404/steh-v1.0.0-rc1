@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.agents.pull_request_review import PullRequestReviewAgent
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import TaskRecord
 from app.models.context import ContextKind, ContextSourceInput
 from app.models.contracts import TaskStatus, ids, utc_now
@@ -211,6 +211,7 @@ def accept_pull_request_review(
     reader: GitHubPullRequestReader,
 ) -> TaskRecord:
     """Fetch and persist a sanitized pull-request snapshot, then queue the review (ADR-016)."""
+    settings = get_settings()
     fetched = reader.fetch(reference)
     pull_request = sanitize_github_pull_request(
         fetched,
@@ -257,6 +258,7 @@ def accept_pull_request_review(
 
 
 def run_pull_request_review(db: Session, task_id: UUID) -> TaskRecord:
+    settings = get_settings()
     record = db.get(TaskRecord, task_id)
     if record is None or record.source_pull_request is None:
         raise ValueError("Pull request review task not found")

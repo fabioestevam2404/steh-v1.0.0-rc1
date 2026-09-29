@@ -3,7 +3,7 @@ from typing import Protocol
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.models.github_pull_request import (
     FetchedGitHubPullRequest,
     FetchedPullRequestFile,
@@ -193,6 +193,7 @@ def _allowed_repositories(value: str) -> frozenset[str]:
 
 
 def get_github_pull_request_reader() -> GitHubPullRequestReader:
+    settings = get_settings()
     token = settings.github_token.get_secret_value() if settings.github_token is not None else None
     return GitHubPullRequestClient(
         base_url=settings.github_api_url,
