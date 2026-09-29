@@ -50,11 +50,7 @@ def judge_rubric_sha256(rubric: JudgeRubric) -> str:
 
 
 def judge_artifacts(state: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        name: state[name]
-        for name in JUDGE_ARTIFACT_NAMES
-        if state.get(name) is not None
-    }
+    return {name: state[name] for name in JUDGE_ARTIFACT_NAMES if state.get(name) is not None}
 
 
 def build_judge_input(
@@ -151,14 +147,11 @@ def compile_judge_evaluation(
 
     dimension_scores: dict[JudgeDimension, int] = {}
     for dimension in JudgeDimension:
-        dimension_items = [
-            item for item in evaluations if item.dimension == dimension
-        ]
+        dimension_items = [item for item in evaluations if item.dimension == dimension]
         if dimension_items:
             total_weight = sum(item.weight for item in dimension_items)
             dimension_scores[dimension] = round(
-                sum(item.score * item.weight for item in dimension_items)
-                / total_weight
+                sum(item.score * item.weight for item in dimension_items) / total_weight
             )
 
     summary, summary_redacted, summary_suspicious = _sanitize_output(
@@ -199,9 +192,7 @@ def compile_judge_evaluation(
         input_truncated=judge_input.truncated,
         input_redacted=judge_input.redacted,
         output_redacted=output_redacted,
-        suspicious_instruction=(
-            judge_input.suspicious_instruction or output_suspicious
-        ),
+        suspicious_instruction=(judge_input.suspicious_instruction or output_suspicious),
         authoritative=False,
         evaluated_at=evaluated_at,
     )
@@ -229,9 +220,7 @@ def non_authoritative_judge_result(
         status=status,
         verdict=JudgeVerdict.NOT_EVALUATED,
         summary=summary,
-        limitations=[
-            "This artifact never overrides tests, policies, scanners, or human review."
-        ],
+        limitations=["This artifact never overrides tests, policies, scanners, or human review."],
         provider=provider,
         model=model,
         input_sha256=judge_input.input_sha256,

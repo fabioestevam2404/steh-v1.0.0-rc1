@@ -56,9 +56,7 @@ class GitHubPullRequestClient:
         self.base_url = normalized_url
         self.token = token
         self.timeout_seconds = timeout_seconds
-        self.allowed_repositories = frozenset(
-            item.casefold() for item in allowed_repositories
-        )
+        self.allowed_repositories = frozenset(item.casefold() for item in allowed_repositories)
         self.api_version = api_version
         self.max_files = max_files
         self.max_response_bytes = max_response_bytes
@@ -68,9 +66,7 @@ class GitHubPullRequestClient:
         try:
             with client.stream("GET", path) as response:
                 if response.status_code == 404:
-                    raise GitHubPullRequestNotFoundError(
-                        "GitHub pull request was not found."
-                    )
+                    raise GitHubPullRequestNotFoundError("GitHub pull request was not found.")
                 if response.status_code >= 400:
                     raise GitHubPullRequestUpstreamError(
                         f"GitHub API returned HTTP {response.status_code}."
@@ -92,9 +88,7 @@ class GitHubPullRequestClient:
         except GitHubPullRequestError:
             raise
         except httpx.RequestError as exc:
-            raise GitHubPullRequestUpstreamError(
-                "GitHub API request failed."
-            ) from exc
+            raise GitHubPullRequestUpstreamError("GitHub API request failed.") from exc
 
     def fetch(
         self,
@@ -113,10 +107,7 @@ class GitHubPullRequestClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        path = (
-            f"/repos/{reference.owner}/{reference.repository}"
-            f"/pulls/{reference.pull_number}"
-        )
+        path = f"/repos/{reference.owner}/{reference.repository}/pulls/{reference.pull_number}"
         with httpx.Client(
             base_url=self.base_url,
             headers=headers,
@@ -173,10 +164,7 @@ class GitHubPullRequestClient:
                 additions=payload["additions"],
                 deletions=payload["deletions"],
                 files=files,
-                files_truncated=(
-                    changed_files > len(files)
-                    or len(files_payload) > self.max_files
-                ),
+                files_truncated=(changed_files > len(files) or len(files_payload) > self.max_files),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise GitHubPullRequestUpstreamError(
@@ -196,9 +184,7 @@ class GitHubPullRequestClient:
             deletions=payload["deletions"],
             changes=payload["changes"],
             patch=patch if isinstance(patch, str) else "",
-            previous_filename=(
-                previous_filename if isinstance(previous_filename, str) else None
-            ),
+            previous_filename=(previous_filename if isinstance(previous_filename, str) else None),
         )
 
 
@@ -207,18 +193,12 @@ def _allowed_repositories(value: str) -> frozenset[str]:
 
 
 def get_github_pull_request_reader() -> GitHubPullRequestReader:
-    token = (
-        settings.github_token.get_secret_value()
-        if settings.github_token is not None
-        else None
-    )
+    token = settings.github_token.get_secret_value() if settings.github_token is not None else None
     return GitHubPullRequestClient(
         base_url=settings.github_api_url,
         token=token or None,
         timeout_seconds=settings.github_timeout_seconds,
-        allowed_repositories=_allowed_repositories(
-            settings.github_allowed_repositories
-        ),
+        allowed_repositories=_allowed_repositories(settings.github_allowed_repositories),
         api_version=settings.github_api_version,
         max_files=settings.github_pr_max_files,
         max_response_bytes=settings.github_pr_max_response_bytes,

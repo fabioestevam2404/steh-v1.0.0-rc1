@@ -113,9 +113,7 @@ def test_client_blocks_repository_before_request() -> None:
 
 
 def test_client_rejects_oversized_response() -> None:
-    transport = httpx.MockTransport(
-        lambda _: httpx.Response(200, content=b"x" * 101)
-    )
+    transport = httpx.MockTransport(lambda _: httpx.Response(200, content=b"x" * 101))
     client = GitHubPullRequestClient(
         base_url="https://api.github.com",
         token=None,

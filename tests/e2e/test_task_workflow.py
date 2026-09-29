@@ -9,12 +9,7 @@ def test_full_task_workflow() -> None:
     with TestClient(app) as client:
         create = client.post(
             "/api/v1/tasks",
-            json={
-                "request": (
-                    "Crie uma API segura e observável "
-                    "para cadastro de clientes."
-                )
-            },
+            json={"request": ("Crie uma API segura e observável para cadastro de clientes.")},
         )
 
         assert create.status_code == 201
@@ -30,28 +25,20 @@ def test_full_task_workflow() -> None:
 
         task_id = payload["task_id"]
 
-        audit = client.get(
-            f"/api/v1/tasks/{task_id}/audit"
-        )
+        audit = client.get(f"/api/v1/tasks/{task_id}/audit")
 
         assert audit.status_code == 200
 
         audit_payload = audit.json()
 
-        agent_names = {
-            run["agent_name"]
-            for run in audit_payload["agent_runs"]
-        }
+        agent_names = {run["agent_name"] for run in audit_payload["agent_runs"]}
 
         assert "requirements_agent" in agent_names
         assert "specification_agent" in agent_names
         assert "architecture_agent" in agent_names
         assert "security_agent" in agent_names
 
-        event_types = {
-            event["event_type"]
-            for event in audit_payload["events"]
-        }
+        event_types = {event["event_type"] for event in audit_payload["events"]}
 
         assert "AGENT_STARTED" in event_types
         assert "AGENT_SUCCEEDED" in event_types

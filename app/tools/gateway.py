@@ -14,9 +14,7 @@ class CapabilityViolation(RuntimeError):
 
 class ToolGateway:
     def __init__(self, policy_path: str = "policies/capabilities.yaml") -> None:
-        self.policy = yaml.safe_load(
-            Path(policy_path).read_text(encoding="utf-8")
-        )
+        self.policy = yaml.safe_load(Path(policy_path).read_text(encoding="utf-8"))
         self.root = Path(self.policy["capabilities"]["workspace"]["root"])
 
     def workspace_for(self, task_id: str) -> Path:

@@ -170,9 +170,7 @@ def execute_task(
             )
 
         if record.judge_evaluation:
-            evaluation = JudgeEvaluationArtifact.model_validate(
-                record.judge_evaluation
-            )
+            evaluation = JudgeEvaluationArtifact.model_validate(record.judge_evaluation)
             record_event(
                 db,
                 task_id,
@@ -319,7 +317,7 @@ def resume_human_review(
 
     _apply_workflow_result(record, result)
     policy_results = result.get("policy_results", [])
-    for policy_decision in policy_results[pending.policy_result_count:]:
+    for policy_decision in policy_results[pending.policy_result_count :]:
         record_event(
             db,
             task_id,
@@ -340,9 +338,7 @@ def resume_human_review(
         )
 
     if record.judge_evaluation:
-        evaluation = JudgeEvaluationArtifact.model_validate(
-            record.judge_evaluation
-        )
+        evaluation = JudgeEvaluationArtifact.model_validate(record.judge_evaluation)
         record_event(
             db,
             task_id,

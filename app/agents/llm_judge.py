@@ -102,9 +102,7 @@ class LLMJudgeAgent:
                 else f"Artifact {criterion.artifact} is missing or empty."
             )
             if criterion.artifact == "validation" and isinstance(artifact, dict):
-                passed = bool(artifact.get("test_passed")) and bool(
-                    artifact.get("scanners_passed")
-                )
+                passed = bool(artifact.get("test_passed")) and bool(artifact.get("scanners_passed"))
                 score = 100 if passed else 0
                 rationale = (
                     "Deterministic tests and scanners report success."
@@ -122,7 +120,5 @@ class LLMJudgeAgent:
         return JudgeProposal(
             criteria=proposals,
             summary="Deterministic development stub evaluated artifact availability.",
-            limitations=[
-                "Stub mode checks bounded structural signals, not semantic quality."
-            ],
+            limitations=["Stub mode checks bounded structural signals, not semantic quality."],
         )

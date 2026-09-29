@@ -48,18 +48,14 @@ def test_context_snapshot_precedes_requirements() -> None:
     graph = build_graph(checkpointer=MemorySaver()).get_graph()
 
     assert "context" in graph.nodes
-    assert any(
-        edge.source == "context" and edge.target == "requirements"
-        for edge in graph.edges
-    )
+    assert any(edge.source == "context" and edge.target == "requirements" for edge in graph.edges)
 
 
 def test_validation_gate_can_return_to_implementation() -> None:
     graph = build_graph(checkpointer=MemorySaver()).get_graph()
 
     assert any(
-        edge.source == "validation_gate" and edge.target == "implementation"
-        for edge in graph.edges
+        edge.source == "validation_gate" and edge.target == "implementation" for edge in graph.edges
     )
 
 
@@ -67,10 +63,7 @@ def test_judge_runs_only_after_successful_validation_gate() -> None:
     graph = build_graph(checkpointer=MemorySaver()).get_graph()
 
     assert "judge" in graph.nodes
-    assert any(
-        edge.source == "validation_gate" and edge.target == "judge"
-        for edge in graph.edges
-    )
+    assert any(edge.source == "validation_gate" and edge.target == "judge" for edge in graph.edges)
     assert any(edge.source == "judge" and edge.target == "__end__" for edge in graph.edges)
 
 

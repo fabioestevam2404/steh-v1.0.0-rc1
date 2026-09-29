@@ -97,9 +97,7 @@ class GitHubIssueAnalysisAgent:
             priority = IssuePriority.MEDIUM
 
         ambiguities = [] if issue.body else ["The issue does not provide a description."]
-        risks = [
-            "The issue may omit affected components or operational constraints."
-        ]
+        risks = ["The issue may omit affected components or operational constraints."]
         if issue.suspicious_instruction:
             risks.append("The issue contains instruction-like untrusted content.")
 

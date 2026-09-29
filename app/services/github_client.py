@@ -47,9 +47,7 @@ class GitHubIssueClient:
         self.base_url = normalized_url
         self.token = token
         self.timeout_seconds = timeout_seconds
-        self.allowed_repositories = frozenset(
-            item.casefold() for item in allowed_repositories
-        )
+        self.allowed_repositories = frozenset(item.casefold() for item in allowed_repositories)
         self.api_version = api_version
         self.transport = transport
 
@@ -85,9 +83,7 @@ class GitHubIssueClient:
         if response.status_code == 404:
             raise GitHubIssueNotFoundError("GitHub issue was not found.")
         if response.status_code >= 400:
-            raise GitHubUpstreamError(
-                f"GitHub API returned HTTP {response.status_code}."
-            )
+            raise GitHubUpstreamError(f"GitHub API returned HTTP {response.status_code}.")
 
         try:
             payload = response.json()
@@ -129,17 +125,11 @@ def _allowed_repositories(value: str) -> frozenset[str]:
 
 
 def get_github_issue_reader() -> GitHubIssueReader:
-    token = (
-        settings.github_token.get_secret_value()
-        if settings.github_token is not None
-        else None
-    )
+    token = settings.github_token.get_secret_value() if settings.github_token is not None else None
     return GitHubIssueClient(
         base_url=settings.github_api_url,
         token=token or None,
         timeout_seconds=settings.github_timeout_seconds,
-        allowed_repositories=_allowed_repositories(
-            settings.github_allowed_repositories
-        ),
+        allowed_repositories=_allowed_repositories(settings.github_allowed_repositories),
         api_version=settings.github_api_version,
     )

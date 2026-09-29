@@ -18,10 +18,7 @@ class FakeGitHubIssueReader:
             state="open",
             labels=["enhancement"],
             author="octocat",
-            issue_url=(
-                f"https://github.com/{reference.full_name}/issues/"
-                f"{reference.issue_number}"
-            ),
+            issue_url=(f"https://github.com/{reference.full_name}/issues/{reference.issue_number}"),
             updated_at=datetime(2026, 9, 5, tzinfo=UTC),
         )
 
@@ -54,12 +51,8 @@ def test_github_issue_creates_auditable_context_backed_task() -> None:
             audit = client.get(f"/api/v1/tasks/{payload['task_id']}/audit")
             assert audit.status_code == 200
             audit_payload = audit.json()
-            agent_names = {
-                run["agent_name"] for run in audit_payload["agent_runs"]
-            }
-            event_types = {
-                event["event_type"] for event in audit_payload["events"]
-            }
+            agent_names = {run["agent_name"] for run in audit_payload["agent_runs"]}
+            event_types = {event["event_type"] for event in audit_payload["events"]}
             assert "github_issue_analysis_agent" in agent_names
             assert "GITHUB_ISSUE_INGESTED" in event_types
             assert "GITHUB_ISSUE_ANALYZED" in event_types

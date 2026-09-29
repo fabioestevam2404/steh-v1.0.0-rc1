@@ -53,9 +53,7 @@ def test_application_calculates_weighted_verdict() -> None:
 
 def test_proposal_must_cover_exact_versioned_rubric() -> None:
     rubric = load_judge_rubric("policies/judge-rubric.yaml")
-    proposal = _proposal(90).model_copy(
-        update={"criteria": _proposal(90).criteria[:-1]}
-    )
+    proposal = _proposal(90).model_copy(update={"criteria": _proposal(90).criteria[:-1]})
 
     with pytest.raises(ValueError, match="every rubric criterion"):
         compile_judge_evaluation(
@@ -89,10 +87,7 @@ def test_judge_input_is_sanitized_bounded_and_hashed() -> None:
 
 def test_stub_judge_is_deterministic_and_non_authoritative() -> None:
     rubric = load_judge_rubric("policies/judge-rubric.yaml")
-    artifacts = {
-        criterion.artifact: {"available": True}
-        for criterion in rubric.criteria
-    }
+    artifacts = {criterion.artifact: {"available": True} for criterion in rubric.criteria}
     artifacts["validation"] = {
         "test_passed": True,
         "scanners_passed": True,

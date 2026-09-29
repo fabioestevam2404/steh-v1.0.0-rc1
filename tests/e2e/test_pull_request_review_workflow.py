@@ -25,8 +25,7 @@ class FakeGitHubPullRequestReader:
             state="open",
             author="octocat",
             pull_request_url=(
-                f"https://github.com/{reference.full_name}/pull/"
-                f"{reference.pull_number}"
+                f"https://github.com/{reference.full_name}/pull/{reference.pull_number}"
             ),
             updated_at=datetime(2026, 9, 5, tzinfo=UTC),
             base_ref="main",
@@ -45,10 +44,7 @@ class FakeGitHubPullRequestReader:
                     additions=8,
                     deletions=2,
                     changes=10,
-                    patch=(
-                        "@@ -1,2 +1,8 @@\n"
-                        "+password=do-not-store-this-value"
-                    ),
+                    patch=("@@ -1,2 +1,8 @@\n+password=do-not-store-this-value"),
                 ),
                 FetchedPullRequestFile(
                     filename="tests/unit/test_review.py",
@@ -64,9 +60,7 @@ class FakeGitHubPullRequestReader:
 
 @pytest.mark.e2e
 def test_pull_request_review_is_read_only_context_backed_and_auditable() -> None:
-    app.dependency_overrides[
-        get_github_pull_request_reader
-    ] = FakeGitHubPullRequestReader
+    app.dependency_overrides[get_github_pull_request_reader] = FakeGitHubPullRequestReader
     try:
         with TestClient(app) as client:
             created = client.post(
@@ -93,12 +87,8 @@ def test_pull_request_review_is_read_only_context_backed_and_auditable() -> None
             audit = client.get(f"/api/v1/tasks/{payload['task_id']}/audit")
             assert audit.status_code == 200
             audit_payload = audit.json()
-            agent_names = {
-                run["agent_name"] for run in audit_payload["agent_runs"]
-            }
-            event_types = {
-                event["event_type"] for event in audit_payload["events"]
-            }
+            agent_names = {run["agent_name"] for run in audit_payload["agent_runs"]}
+            event_types = {event["event_type"] for event in audit_payload["events"]}
             assert "pull_request_review_agent" in agent_names
             review_run = next(
                 run

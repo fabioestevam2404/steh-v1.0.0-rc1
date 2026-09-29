@@ -130,12 +130,10 @@ def _deterministic_findings(
                 category=PullRequestFindingCategory.QUALITY,
                 title="Pull request diff coverage is incomplete",
                 description=(
-                    "The configured file or patch budget did not capture the complete "
-                    "pull request."
+                    "The configured file or patch budget did not capture the complete pull request."
                 ),
                 recommendation=(
-                    "Review the omitted files and patches before relying on this "
-                    "analysis."
+                    "Review the omitted files and patches before relying on this analysis."
                 ),
             )
         )
@@ -230,15 +228,10 @@ class PullRequestReviewAgent:
         recommendation = review.recommendation
         if pull_request.redacted:
             recommendation = PullRequestRecommendation.BLOCK
-        elif (
-            pull_request.suspicious_instruction
-            or pull_request.truncated
-            or context.truncated
-        ):
+        elif pull_request.suspicious_instruction or pull_request.truncated or context.truncated:
             recommendation = PullRequestRecommendation.CHANGES_REQUIRED
         elif any(
-            finding.category == PullRequestFindingCategory.TESTING
-            for finding in deterministic
+            finding.category == PullRequestFindingCategory.TESTING for finding in deterministic
         ):
             recommendation = PullRequestRecommendation.CHANGES_REQUIRED
 
@@ -316,11 +309,7 @@ class PullRequestReviewAgent:
         recommendation = PullRequestRecommendation.READY_FOR_HUMAN_REVIEW
         if pull_request.redacted:
             recommendation = PullRequestRecommendation.BLOCK
-        elif (
-            pull_request.suspicious_instruction
-            or pull_request.truncated
-            or context.truncated
-        ):
+        elif pull_request.suspicious_instruction or pull_request.truncated or context.truncated:
             recommendation = PullRequestRecommendation.CHANGES_REQUIRED
         elif code_changed and not tests_changed:
             recommendation = PullRequestRecommendation.CHANGES_REQUIRED
@@ -343,10 +332,7 @@ class PullRequestReviewAgent:
             ),
             security_assessment=(
                 "Deterministic security review findings require attention."
-                if any(
-                    item.category == PullRequestFindingCategory.SECURITY
-                    for item in findings
-                )
+                if any(item.category == PullRequestFindingCategory.SECURITY for item in findings)
                 else "No deterministic security signal was identified."
             ),
             architecture_assessment=(

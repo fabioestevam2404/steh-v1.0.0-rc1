@@ -3,17 +3,13 @@ from app.policies.loader import load_policy_config
 
 
 def engine() -> PolicyEngine:
-    return PolicyEngine(
-        load_policy_config("policies/quality-gates.yaml")
-    )
+    return PolicyEngine(load_policy_config("policies/quality-gates.yaml"))
 
 
 def test_critical_finding_blocks() -> None:
     context = {
         "security_review": {
-            "threat_model": {
-                "security_requirements": ["auth required"]
-            },
+            "threat_model": {"security_requirements": ["auth required"]},
             "findings": [
                 {
                     "severity": "CRITICAL",
@@ -32,9 +28,7 @@ def test_critical_finding_blocks() -> None:
 def test_high_finding_requires_human_review() -> None:
     context = {
         "security_review": {
-            "threat_model": {
-                "security_requirements": ["auth required"]
-            },
+            "threat_model": {"security_requirements": ["auth required"]},
             "findings": [
                 {
                     "severity": "HIGH",
@@ -57,13 +51,7 @@ def test_threat_model_and_security_requirements_are_required() -> None:
     )
     no_requirements = engine().evaluate(
         "SEC-004",
-        {
-            "security_review": {
-                "threat_model": {
-                    "security_requirements": []
-                }
-            }
-        },
+        {"security_review": {"threat_model": {"security_requirements": []}}},
     )
 
     assert no_model.action == "BLOCK"

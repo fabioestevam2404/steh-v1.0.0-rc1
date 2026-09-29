@@ -23,8 +23,7 @@ def _severity_count(
     return sum(
         1
         for finding in findings
-        if finding.get("severity") == severity
-        and finding.get("status", "OPEN") == "OPEN"
+        if finding.get("severity") == severity and finding.get("status", "OPEN") == "OPEN"
     )
 
 
@@ -37,9 +36,7 @@ def _check(
     specification = context.get("specification") or {}
     specification_requirements = specification.get("requirements") or []
     scenarios = specification.get("acceptance_scenarios") or []
-    requirement_ids = {
-        item.get("id") for item in specification_requirements if item.get("id")
-    }
+    requirement_ids = {item.get("id") for item in specification_requirements if item.get("id")}
     scenario_requirement_ids = {
         requirement_id
         for scenario in scenarios
@@ -54,15 +51,9 @@ def _check(
     }
 
     checks = {
-        "requirements_present": bool(
-            context.get("requirements")
-        ),
-        "evidence_present": bool(
-            context.get("evidence")
-        ),
-        "architecture_present": bool(
-            context.get("architecture")
-        ),
+        "requirements_present": bool(context.get("requirements")),
+        "evidence_present": bool(context.get("evidence")),
+        "architecture_present": bool(context.get("architecture")),
         "specification_present": bool(specification),
         "specification_requirements_identified": bool(requirement_ids)
         and len(requirement_ids) == len(specification_requirements),
@@ -91,43 +82,22 @@ def _check(
             )
             == 0
         ),
-        "threat_model_present": bool(
-            threat_model
-        ),
-        "security_requirements_present": bool(
-            threat_model.get(
-                "security_requirements"
-            )
-        ),
-        "implementation_present": bool(
-            context.get("implementation")
-        ),
+        "threat_model_present": bool(threat_model),
+        "security_requirements_present": bool(threat_model.get("security_requirements")),
+        "implementation_present": bool(context.get("implementation")),
         "test_plan_present": bool(test_plan),
         "test_plan_covers_requirements": bool(requirement_ids)
         and requirement_ids <= tested_requirement_ids,
         "negative_security_tests_present": any(
-            test_case.get("negative")
-            and test_case.get("test_type") == "SECURITY"
+            test_case.get("negative") and test_case.get("test_type") == "SECURITY"
             for test_case in test_cases
         ),
-        "tests_passed": bool(
-            (
-                context.get("validation")
-                or {}
-            ).get("test_passed")
-        ),
-        "scanners_passed": bool(
-            (
-                context.get("validation")
-                or {}
-            ).get("scanners_passed")
-        ),
+        "tests_passed": bool((context.get("validation") or {}).get("test_passed")),
+        "scanners_passed": bool((context.get("validation") or {}).get("scanners_passed")),
     }
 
     if rule.check not in checks:
-        raise ValueError(
-            f"Unsupported policy check: {rule.check}"
-        )
+        raise ValueError(f"Unsupported policy check: {rule.check}")
 
     return checks[rule.check]
 
@@ -145,18 +115,12 @@ class PolicyEngine:
         context: Mapping[str, Any],
     ) -> PolicyDecision:
         rule = next(
-            (
-                item
-                for item in self.config.rules
-                if item.id == policy_id
-            ),
+            (item for item in self.config.rules if item.id == policy_id),
             None,
         )
 
         if rule is None:
-            raise KeyError(
-                f"Policy not found: {policy_id}"
-            )
+            raise KeyError(f"Policy not found: {policy_id}")
 
         passed = _check(
             rule,
@@ -166,14 +130,6 @@ class PolicyEngine:
         return PolicyDecision(
             policy_id=rule.id,
             passed=passed,
-            action=(
-                "ALLOW"
-                if passed
-                else rule.action
-            ),
-            reason=(
-                f"{rule.description}: passed"
-                if passed
-                else f"{rule.description}: failed"
-            ),
+            action=("ALLOW" if passed else rule.action),
+            reason=(f"{rule.description}: passed" if passed else f"{rule.description}: failed"),
         )

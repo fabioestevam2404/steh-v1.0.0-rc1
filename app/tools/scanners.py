@@ -45,9 +45,7 @@ class ScannerSuite:
                                         "Target",
                                         "",
                                     ),
-                                    "message": vuln.get(
-                                        "Title"
-                                    )
+                                    "message": vuln.get("Title")
                                     or vuln.get(
                                         "Description",
                                         "",
@@ -83,10 +81,7 @@ class ScannerSuite:
         # Gitleaks writes report to container /tmp in this alpha image contract.
         # A non-zero result is preserved as evidence even if no JSON is available.
         if not result.success and not error:
-            error = (
-                result.stderr[-2000:]
-                or f"{scanner} returned non-zero exit code."
-            )
+            error = result.stderr[-2000:] or f"{scanner} returned non-zero exit code."
 
         return ScannerEvidence(
             scanner=scanner,

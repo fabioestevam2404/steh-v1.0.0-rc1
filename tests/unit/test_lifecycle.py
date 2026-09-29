@@ -54,9 +54,7 @@ def test_lifecycle_wraps_actual_execution(
     )
 
     def actual():
-        events.append(
-            "ACTUAL_EXECUTION"
-        )
+        events.append("ACTUAL_EXECUTION")
         return Result()
 
     lifecycle.execute(
