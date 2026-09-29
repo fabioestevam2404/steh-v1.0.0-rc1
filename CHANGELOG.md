@@ -1,5 +1,43 @@
 # Changelog
 
+## [Unreleased]
+
+Changes merged to `main` after `v1.0.0-rc2` (PRs #4 to #12). Not yet tagged.
+
+### Added
+- Specification-driven workflow: `FR-###`/`NFR-###` requirements mapped to
+  `AC-###` Given/When/Then scenarios, and a `TC-###` test plan created before
+  implementation, with gates SPEC-001..003, TRACE-001 and TESTPLAN-001..003
+  (ADR-009, PR #4).
+- Bounded rework connected to the graph: failed validation returns to the
+  Implementation Agent with the failure reasons, up to the configured maximum,
+  ending in `REWORK_EXHAUSTED` (ADR-010, PR #6).
+- Durable Human-in-the-Loop: expiring review requests, LangGraph `interrupt`
+  and checkpoint resume via `POST /api/v1/tasks/{task_id}/human-review`,
+  `steh_reviewer` role and single-use decisions (ADR-011, PR #7).
+- Auditable Context Engine: immutable, budgeted, hashed and redacted context
+  snapshot per task; API-supplied sources are always `UNTRUSTED` (ADR-012, PR #8).
+- Read-only GitHub Issue Analysis via `POST /api/v1/tasks/from-github-issue`,
+  behind a fail-closed repository allowlist (ADR-013, PR #9).
+- Read-only GitHub Pull Request Review via
+  `POST /api/v1/tasks/from-github-pull-request`, with deterministic safeguards
+  that the agent cannot weaken (ADR-014, PR #10).
+- Auxiliary LLM-as-Judge with a versioned rubric (`policies/judge-rubric.yaml`);
+  always `authoritative=false` and never changes task status or gates
+  (ADR-015, PR #11).
+- Migrations `0006` to `0011` (nullable JSON columns on `tasks`).
+- Configuration: `AUTH_REVIEWER_ROLE`, `HUMAN_REVIEW_TTL_MINUTES`, `CONTEXT_*`,
+  `GITHUB_*` and `JUDGE_*` (see `.env.example`).
+
+### Fixed
+- Security E2E workflow aligned with the Specification Agent (PR #5).
+- Shortened the Patch 4E Alembic revision identifier (PR #9).
+
+### Documentation
+- `docs/HANDOFF.md` with the verified post-RC2 state (PR #12).
+
+---
+
 ## [1.0.0-rc2] - 2026-09-02
 
 ### Fixed
