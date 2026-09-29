@@ -15,18 +15,50 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
+  migrate:
     build: .
+    image: steh-app:local
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg://steh:steh@postgres:5432/steh
       LANGGRAPH_DATABASE_URL: postgresql://steh:steh@postgres:5432/steh?sslmode=disable
-    ports:
-      - "8000:8000"
+      RUN_MIGRATIONS: "false"
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+
+  api:
+    image: steh-app:local
+    pull_policy: never
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://steh:steh@postgres:5432/steh
+      LANGGRAPH_DATABASE_URL: postgresql://steh:steh@postgres:5432/steh?sslmode=disable
+      RUN_MIGRATIONS: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: steh-app:local
+    pull_policy: never
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://steh:steh@postgres:5432/steh
+      LANGGRAPH_DATABASE_URL: postgresql://steh:steh@postgres:5432/steh?sslmode=disable
+      RUN_MIGRATIONS: "false"
+    command: ["python", "-m", "app.worker"]
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   scanner:
     build:

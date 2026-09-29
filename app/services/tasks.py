@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import TaskRecord
-from app.models.contracts import TaskCreate, TaskStatus, utc_now
+from app.models.context import ContextBundle, ContextSourceInput
+from app.models.contracts import TaskCreate, TaskStatus, ids, utc_now
 from app.models.human_review import (
     HumanReviewArtifact,
     HumanReviewDecision,
@@ -24,6 +25,7 @@ from app.services.audit import (
     record_event,
 )
 from app.services.context import ContextEngine, context_receipt
+from app.services.jobs import JobKind, new_job, record_job_queued
 from app.services.judge import judge_evaluation_receipt
 from app.services.security import persist_security_findings
 
@@ -70,15 +72,83 @@ def _apply_workflow_result(
     record.updated_at = utc_now()
 
 
-def execute_task(
+def build_context_bundle(
+    request: str,
+    sources: list[ContextSourceInput],
+) -> ContextBundle:
+    return ContextEngine(
+        max_sources=settings.context_max_sources,
+        max_tokens=settings.context_max_tokens,
+        max_source_tokens=settings.context_max_source_tokens,
+    ).build(request, sources)
+
+
+def persist_context_bundle(
     db: Session,
-    task_id: UUID,
-    trace_id: UUID,
-    payload: TaskCreate,
-) -> TaskRecord:
+    record: TaskRecord,
+    context_bundle: ContextBundle,
+) -> None:
+    record.context_bundle = context_bundle.model_dump(mode="json")
+    record.updated_at = utc_now()
+    db.commit()
+    _record_context_event(db, record, context_bundle)
+
+
+def _record_context_event(
+    db: Session,
+    record: TaskRecord,
+    context_bundle: ContextBundle,
+) -> None:
+    record_event(
+        db,
+        record.task_id,
+        record.trace_id,
+        "CONTEXT_BUNDLE_CREATED",
+        "context_engine",
+        context_receipt(context_bundle).model_dump(mode="json"),
+    )
+
+
+def accept_task(db: Session, payload: TaskCreate) -> TaskRecord:
+    """Validate and persist a task, then queue its workflow (ADR-016).
+
+    Raises ValueError when the context sources are invalid; no task is created.
+    """
+    context_bundle = build_context_bundle(payload.request, payload.context_sources)
+
+    task_id, trace_id = ids()
+    record = TaskRecord(
+        task_id=task_id,
+        trace_id=trace_id,
+        request=payload.request,
+        status=TaskStatus.QUEUED,
+        context_bundle=context_bundle.model_dump(mode="json"),
+    )
+    job = new_job(record, JobKind.EXECUTE_TASK)
+    # Flush the task first: without a relationship, SQLAlchemy does not order
+    # the inserts by the foreign key. Both rows still commit atomically.
+    db.add(record)
+    db.flush()
+    db.add(job)
+    db.commit()
+
+    record_event(db, task_id, trace_id, "TASK_CREATED", "api", {})
+    _record_context_event(db, record, context_bundle)
+    record_job_queued(db, record, job)
+    db.refresh(record)
+    return record
+
+
+def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
+    """Run the engineering workflow for a task whose context is already persisted."""
     record = db.get(TaskRecord, task_id)
     if record is None:
         raise ValueError("Task not found")
+    if record.context_bundle is None:
+        raise ValueError("Task has no context bundle")
+
+    trace_id = record.trace_id
+    context_bundle = ContextBundle.model_validate(record.context_bundle)
 
     record.status = TaskStatus.ANALYZING
     db.commit()
@@ -89,7 +159,7 @@ def execute_task(
         trace_id,
         "TASK_STARTED",
         "orchestrator",
-        {"request_length": len(payload.request)},
+        {"request_length": len(record.request)},
     )
 
     started = time.perf_counter()
@@ -105,29 +175,13 @@ def execute_task(
     )
 
     try:
-        context_bundle = ContextEngine(
-            max_sources=settings.context_max_sources,
-            max_tokens=settings.context_max_tokens,
-            max_source_tokens=settings.context_max_source_tokens,
-        ).build(payload.request, payload.context_sources)
-        record.context_bundle = context_bundle.model_dump(mode="json")
-        db.commit()
-        record_event(
-            db,
-            task_id,
-            trace_id,
-            "CONTEXT_BUNDLE_CREATED",
-            "context_engine",
-            context_receipt(context_bundle).model_dump(mode="json"),
-        )
-
         lifecycle = AgentLifecycle(db, task_id, trace_id)
         graph = build_graph(lifecycle=lifecycle)
         result = graph.invoke(
             {
                 "task_id": str(task_id),
                 "trace_id": str(trace_id),
-                "user_request": payload.request,
+                "user_request": record.request,
                 "status": "ANALYZING",
                 "context_bundle": context_bundle.model_dump(mode="json"),
                 "evidence": [],
@@ -242,12 +296,13 @@ def execute_task(
         raise
 
 
-def resume_human_review(
+def claim_human_review(
     db: Session,
     task_id: UUID,
     reviewer: str,
     payload: HumanReviewDecision,
 ) -> TaskRecord:
+    """Atomically claim a pending review, record the decision and queue the resume."""
     record = db.get(TaskRecord, task_id)
     if record is None or record.human_review is None:
         raise HumanReviewConflictError("Human review is not available.")
@@ -263,6 +318,13 @@ def resume_human_review(
         decided_at,
     )
 
+    resume = HumanReviewResume(
+        status=outcome,
+        reviewer=reviewer,
+        justification=justification,
+        decided_at=decided_at,
+    )
+
     claimed = db.execute(
         update(TaskRecord)
         .where(
@@ -274,14 +336,13 @@ def resume_human_review(
     if getattr(claimed, "rowcount", 0) != 1:
         db.rollback()
         raise HumanReviewConflictError("Human review is already being processed.")
+
+    # The claim and its resume job commit together, so a claimed review is never
+    # left in RESUMING without a job to finish it.
+    job = new_job(record, JobKind.RESUME_HUMAN_REVIEW, resume.model_dump(mode="json"))
+    db.add(job)
     db.commit()
 
-    resume = HumanReviewResume(
-        status=outcome,
-        reviewer=reviewer,
-        justification=justification,
-        decided_at=decided_at,
-    )
     record_event(
         db,
         task_id,
@@ -290,6 +351,24 @@ def resume_human_review(
         reviewer,
         resume.model_dump(mode="json"),
     )
+    record_job_queued(db, record, job)
+    db.refresh(record)
+    return record
+
+
+def run_human_review_resume(
+    db: Session,
+    task_id: UUID,
+    resume_payload: dict[str, Any],
+) -> TaskRecord:
+    """Resume the interrupted checkpoint with a previously claimed decision."""
+    record = db.get(TaskRecord, task_id)
+    if record is None or record.human_review is None:
+        raise ValueError("Human review is not available.")
+
+    pending = HumanReviewArtifact.model_validate(record.human_review)
+    resume = HumanReviewResume.model_validate(resume_payload)
+    reviewer = resume.reviewer
 
     lifecycle = AgentLifecycle(db, task_id, record.trace_id)
     graph = build_graph(lifecycle=lifecycle)

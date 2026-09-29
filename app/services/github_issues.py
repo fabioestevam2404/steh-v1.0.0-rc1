@@ -1,6 +1,7 @@
 import hashlib
 import json
 from typing import NoReturn
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -8,7 +9,7 @@ from app.agents.github_issue_analysis import GitHubIssueAnalysisAgent
 from app.core.config import settings
 from app.db.models import TaskRecord
 from app.models.context import ContextKind, ContextSourceInput
-from app.models.contracts import TaskCreate, TaskStatus, ids
+from app.models.contracts import TaskStatus, ids, utc_now
 from app.models.github_issue import (
     FetchedGitHubIssue,
     GitHubIssueReceipt,
@@ -20,7 +21,12 @@ from app.orchestration.lifecycle import AgentLifecycle
 from app.services.audit import record_event
 from app.services.context import sanitize_context_text
 from app.services.github_client import GitHubIssueReader
-from app.services.tasks import execute_task
+from app.services.jobs import JobKind, new_job, record_job_queued
+from app.services.tasks import (
+    build_context_bundle,
+    persist_context_bundle,
+    run_task_workflow,
+)
 
 
 def _sha256(value: str) -> str:
@@ -164,11 +170,12 @@ def _fail_task(
     raise error
 
 
-def create_task_from_github_issue(
+def accept_github_issue(
     db: Session,
     reference: GitHubIssueReference,
     reader: GitHubIssueReader,
 ) -> TaskRecord:
+    """Fetch and persist a sanitized issue snapshot, then queue its analysis (ADR-016)."""
     fetched = reader.fetch(reference)
     issue = sanitize_github_issue(
         fetched,
@@ -179,10 +186,15 @@ def create_task_from_github_issue(
         task_id=task_id,
         trace_id=trace_id,
         request=issue.title,
-        status=TaskStatus.ANALYZING_ISSUE,
+        status=TaskStatus.QUEUED,
         source_issue=issue.model_dump(mode="json"),
     )
+    job = new_job(record, JobKind.ANALYZE_GITHUB_ISSUE)
+    # Flush the task first: without a relationship, SQLAlchemy does not order
+    # the inserts by the foreign key. Both rows still commit atomically.
     db.add(record)
+    db.flush()
+    db.add(job)
     db.commit()
     record_event(
         db,
@@ -200,6 +212,22 @@ def create_task_from_github_issue(
         "github_issue_client",
         github_issue_receipt(issue).model_dump(mode="json"),
     )
+
+    record_job_queued(db, record, job)
+    db.refresh(record)
+    return record
+
+
+def run_github_issue_analysis(db: Session, task_id: UUID) -> TaskRecord:
+    record = db.get(TaskRecord, task_id)
+    if record is None or record.source_issue is None:
+        raise ValueError("GitHub issue task not found")
+
+    issue = GitHubIssueSnapshot.model_validate(record.source_issue)
+    trace_id = record.trace_id
+    record.status = TaskStatus.ANALYZING_ISSUE
+    record.updated_at = utc_now()
+    db.commit()
 
     try:
         agent = GitHubIssueAnalysisAgent(
@@ -228,10 +256,11 @@ def create_task_from_github_issue(
                 "source_content_sha256": analysis.source_content_sha256,
             },
         )
-        payload = TaskCreate(
-            request=record.request,
-            context_sources=_context_sources(issue, analysis),
+        context_bundle = build_context_bundle(
+            record.request,
+            _context_sources(issue, analysis),
         )
-        return execute_task(db, task_id, trace_id, payload)
+        persist_context_bundle(db, record, context_bundle)
+        return run_task_workflow(db, task_id)
     except Exception as exc:
         _fail_task(db, record, exc)

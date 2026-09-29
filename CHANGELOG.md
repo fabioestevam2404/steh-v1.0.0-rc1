@@ -2,9 +2,27 @@
 
 ## [Unreleased]
 
-Changes merged to `main` after `v1.0.0-rc2` (PRs #4 to #12). Not yet tagged.
+Changes merged to `main` after `v1.0.0-rc2`. Not yet tagged.
+
+### Changed (BREAKING)
+- Task execution is asynchronous (ADR-016). `POST /api/v1/tasks`,
+  `/from-github-issue`, `/from-github-pull-request` and
+  `/{task_id}/human-review` now return `202 Accepted` with a `Location` header
+  and `Retry-After: 2`. New tasks start as `QUEUED`; review decisions return
+  `RESUMING`. Clients poll `GET /api/v1/tasks/{task_id}` for artifacts.
+  Validation, context, GitHub ingestion and review-claim errors are still
+  returned synchronously (`409`, `422`, `403`, `404`, `502`).
+- Invalid context sources now return `422` instead of `500`.
+- Docker Compose runs migrations once in a `migrate` service; the entrypoint
+  skips them when `RUN_MIGRATIONS=false`.
 
 ### Added
+- PostgreSQL job queue (`task_jobs`, migration `0012`) and worker process
+  (`python -m app.worker`, `worker` service in Compose): `SKIP LOCKED` claims,
+  renewable lease, `TASK_ABANDONED` on lease expiry and no automatic retries.
+  Job payloads never contain raw client or GitHub content (ADR-016).
+- `QUEUED` task status, `JOB_QUEUED` and `TASK_ABANDONED` audit events,
+  `WORKER_POLL_INTERVAL_SECONDS` and `WORKER_LEASE_SECONDS` settings.
 - Specification-driven workflow: `FR-###`/`NFR-###` requirements mapped to
   `AC-###` Given/When/Then scenarios, and a `TC-###` test plan created before
   implementation, with gates SPEC-001..003, TRACE-001 and TESTPLAN-001..003

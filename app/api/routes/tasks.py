@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, get_principal, require_reviewer
@@ -14,7 +14,6 @@ from app.models.contracts import (
     TaskCreate,
     TaskResponse,
     TaskStatus,
-    ids,
 )
 from app.models.github_issue import (
     GitHubIssueSnapshot,
@@ -41,7 +40,7 @@ from app.services.github_client import (
     get_github_issue_reader,
 )
 from app.services.github_issues import (
-    create_task_from_github_issue,
+    accept_github_issue,
     github_issue_receipt,
 )
 from app.services.github_pull_requests import (
@@ -52,14 +51,14 @@ from app.services.github_pull_requests import (
     get_github_pull_request_reader,
 )
 from app.services.pull_request_reviews import (
-    create_pull_request_review,
+    accept_pull_request_review,
     github_pull_request_receipt,
 )
 from app.services.security import get_security_findings
 from app.services.tasks import (
     HumanReviewConflictError,
-    execute_task,
-    resume_human_review,
+    accept_task,
+    claim_human_review,
 )
 
 router = APIRouter(
@@ -67,6 +66,8 @@ router = APIRouter(
     tags=["tasks"],
     dependencies=[Depends(get_principal)],
 )
+
+POLL_AFTER_SECONDS = 2
 
 DbSession = Annotated[Session, Depends(get_db)]
 ReviewerPrincipal = Annotated[Principal, Depends(require_reviewer)]
@@ -148,76 +149,47 @@ def _response(record: TaskRecord) -> TaskResponse:
     )
 
 
+def _accepted(record: TaskRecord, response: Response) -> TaskResponse:
+    """202 contract from ADR-016: poll the Location until a terminal or waiting status."""
+    response.headers["Location"] = f"/api/v1/tasks/{record.task_id}"
+    response.headers["Retry-After"] = str(POLL_AFTER_SECONDS)
+    return _response(record)
+
+
 @router.post(
     "",
     response_model=TaskResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 def create_task(
     payload: TaskCreate,
     db: DbSession,
+    response: Response,
 ) -> TaskResponse:
-    task_id, trace_id = ids()
-
-    record = TaskRecord(
-        task_id=task_id,
-        trace_id=trace_id,
-        request=payload.request,
-        status="CREATED",
-    )
-
-    db.add(record)
-    db.commit()
-
-    record_event(
-        db,
-        task_id,
-        trace_id,
-        "TASK_CREATED",
-        "api",
-        {},
-    )
-
     try:
-        completed = execute_task(
-            db,
-            task_id,
-            trace_id,
-            payload,
-        )
-        return _response(completed)
-
-    except Exception as exc:
-        record.status = "FAILED"
-        db.commit()
-
-        record_event(
-            db,
-            task_id,
-            trace_id,
-            "TASK_FAILED",
-            "api",
-            {},
-        )
-
+        record = accept_task(db, payload)
+    except ValueError as exc:
         raise HTTPException(
-            status_code=500,
-            detail="Task execution failed.",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
         ) from exc
+
+    return _accepted(record, response)
 
 
 @router.post(
     "/from-github-issue",
     response_model=TaskResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 def create_task_from_issue(
     payload: GitHubIssueTaskCreate,
     db: DbSession,
     reader: IssueReader,
+    response: Response,
 ) -> TaskResponse:
     try:
-        return _response(create_task_from_github_issue(db, payload.issue, reader))
+        return _accepted(accept_github_issue(db, payload.issue, reader), response)
     except GitHubRepositoryNotAllowedError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -241,27 +213,25 @@ def create_task_from_issue(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GitHub issue analysis failed.",
+            detail="GitHub issue could not be accepted.",
         ) from exc
 
 
 @router.post(
     "/from-github-pull-request",
     response_model=TaskResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 def review_github_pull_request(
     payload: GitHubPullRequestTaskCreate,
     db: DbSession,
     reader: PullRequestReader,
+    response: Response,
 ) -> TaskResponse:
     try:
-        return _response(
-            create_pull_request_review(
-                db,
-                payload.pull_request,
-                reader,
-            )
+        return _accepted(
+            accept_pull_request_review(db, payload.pull_request, reader),
+            response,
         )
     except GitHubPullRequestRepositoryNotAllowedError as exc:
         raise HTTPException(
@@ -281,7 +251,7 @@ def review_github_pull_request(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GitHub pull request review failed.",
+            detail="GitHub pull request could not be accepted.",
         ) from exc
 
 
@@ -307,15 +277,17 @@ def get_task(
 @router.post(
     "/{task_id}/human-review",
     response_model=TaskResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 def decide_human_review(
     task_id: UUID,
     payload: HumanReviewDecision,
     db: DbSession,
     principal: ReviewerPrincipal,
+    response: Response,
 ) -> TaskResponse:
     try:
-        record = resume_human_review(
+        record = claim_human_review(
             db,
             task_id,
             principal.subject,
@@ -327,7 +299,7 @@ def decide_human_review(
             detail=str(exc),
         ) from exc
 
-    return _response(record)
+    return _accepted(record, response)
 
 
 @router.get("/{task_id}/audit")

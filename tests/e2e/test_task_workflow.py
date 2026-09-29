@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,16 +7,28 @@ from app.main import app
 
 
 @pytest.mark.e2e
-def test_full_task_workflow() -> None:
+def test_full_task_workflow(drain_jobs: Callable[[], int]) -> None:
     with TestClient(app) as client:
         create = client.post(
             "/api/v1/tasks",
             json={"request": ("Crie uma API segura e observável para cadastro de clientes.")},
         )
 
-        assert create.status_code == 201
+        assert create.status_code == 202
 
-        payload = create.json()
+        accepted = create.json()
+        task_id = accepted["task_id"]
+
+        assert accepted["status"] == "QUEUED"
+        assert accepted["requirements"] is None
+        assert create.headers["location"] == f"/api/v1/tasks/{task_id}"
+        assert create.headers["retry-after"] == "2"
+
+        assert drain_jobs() >= 1
+
+        fetched = client.get(create.headers["location"])
+        assert fetched.status_code == 200
+        payload = fetched.json()
 
         assert payload["status"] == "HUMAN_REVIEW"
         assert payload["requirements"]
@@ -22,8 +36,6 @@ def test_full_task_workflow() -> None:
         assert payload["architecture"]
         assert payload["security_review"]
         assert payload["risk_level"]
-
-        task_id = payload["task_id"]
 
         audit = client.get(f"/api/v1/tasks/{task_id}/audit")
 
@@ -44,3 +56,4 @@ def test_full_task_workflow() -> None:
         assert "AGENT_SUCCEEDED" in event_types
         assert "POLICY_DECISION" in event_types
         assert "TASK_HUMAN_REVIEW" in event_types
+        assert "JOB_QUEUED" in event_types
