@@ -1,8 +1,12 @@
+import io
+import json
+import logging
 from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 
+from app.core.logging import build_handler
 from app.db.models import AuditEventRecord, TaskJobRecord, TaskRecord
 from app.db.session import SessionLocal
 from app.models.contracts import TaskStatus, ids, utc_now
@@ -148,3 +152,35 @@ def test_lease_renewal_requires_owning_worker() -> None:
         renewed = db.get(TaskJobRecord, job_id)
         assert renewed is not None and renewed.lease_expires_at is not None
         assert renewed.lease_expires_at > utc_now() + timedelta(seconds=300)
+
+
+@pytest.mark.integration
+def test_worker_logs_carry_task_trace_and_job_ids() -> None:
+    _drain_queued()
+    task = _new_task()
+    stream = io.StringIO()
+    handler = build_handler(stream)
+    loggers = [logging.getLogger(name) for name in ("steh.worker", "steh.jobs")]
+    for logger in loggers:
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    try:
+        with SessionLocal() as db:
+            queued_id = enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK).job_id
+            job = claim_next_job(db, "worker-logs", lease_seconds=60)
+            assert job is not None and job.job_id == queued_id
+            process_job(db, job, "worker-logs", lease_seconds=60)
+    finally:
+        for logger in loggers:
+            logger.removeHandler(handler)
+
+    lines = [json.loads(line) for line in stream.getvalue().splitlines()]
+    by_event = {line["event"]: line for line in lines}
+
+    assert by_event["job_queued"]["job_id"] == str(queued_id)
+    failed = by_event["job_failed"]
+    assert failed["task_id"] == str(task.task_id)
+    assert failed["trace_id"] == str(task.trace_id)
+    assert failed["job_id"] == str(queued_id)
+    assert failed["error_type"] == "ValueError"
+    assert failed["duration_ms"] >= 0

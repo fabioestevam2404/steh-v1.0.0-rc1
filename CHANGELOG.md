@@ -23,6 +23,12 @@ Changes merged to `main` after `v1.0.0-rc2`. Not yet tagged.
   Job payloads never contain raw client or GitHub content (ADR-016).
 - `QUEUED` task status, `JOB_QUEUED` and `TASK_ABANDONED` audit events,
   `WORKER_POLL_INTERVAL_SECONDS` and `WORKER_LEASE_SECONDS` settings.
+- Contextual structured logging: `log_context()` binds `task_id`, `trace_id`
+  and `job_id` through `contextvars`, and a logging filter adds them to every
+  record in the API and the worker. New log events: `agent_started`,
+  `agent_completed` and `agent_failed` (with `duration_ms` and `error_type`),
+  `job_queued`, `job_succeeded`, `job_failed` and `task_abandoned`. Error
+  messages are never logged, only error types.
 - Specification-driven workflow: `FR-###`/`NFR-###` requirements mapped to
   `AC-###` Given/When/Then scenarios, and a `TC-###` test plan created before
   implementation, with gates SPEC-001..003, TRACE-001 and TESTPLAN-001..003
