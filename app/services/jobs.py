@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from enum import StrEnum
 from typing import Any
@@ -27,6 +28,8 @@ class JobStatus(StrEnum):
 
 LEASE_EXPIRED = "LeaseExpired"
 
+logger = logging.getLogger("steh.jobs")
+
 
 def new_job(
     record: TaskRecord,
@@ -52,6 +55,16 @@ def new_job(
 
 
 def record_job_queued(db: Session, record: TaskRecord, job: TaskJobRecord) -> None:
+    logger.info(
+        "job_queued",
+        extra={
+            "event": "job_queued",
+            "task_id": str(record.task_id),
+            "trace_id": str(record.trace_id),
+            "job_id": str(job.job_id),
+            "node": job.kind,
+        },
+    )
     record_event(
         db,
         record.task_id,
@@ -167,6 +180,18 @@ def reap_expired_jobs(db: Session) -> int:
     db.commit()
 
     for job, task in abandoned:
+        logger.warning(
+            "task_abandoned",
+            extra={
+                "event": "task_abandoned",
+                "task_id": str(task.task_id),
+                "trace_id": str(task.trace_id),
+                "job_id": str(job.job_id),
+                "node": job.kind,
+                "status": JobStatus.FAILED,
+                "error_type": LEASE_EXPIRED,
+            },
+        )
         record_event(
             db,
             task.task_id,

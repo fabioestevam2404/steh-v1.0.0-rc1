@@ -9,6 +9,7 @@ import os
 import signal
 import socket
 import threading
+import time
 from collections.abc import Callable
 from types import FrameType
 from uuid import UUID
@@ -16,7 +17,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.logging import configure_logging
+from app.core.logging import configure_logging, log_context
 from app.db.models import TaskJobRecord, TaskRecord
 from app.db.session import SessionLocal
 from app.models.contracts import TaskStatus, utc_now
@@ -71,6 +72,11 @@ class _LeaseKeeper(threading.Thread):
         self._stopped = threading.Event()
 
     def run(self) -> None:
+        # Threads do not inherit context variables, so bind the job id here.
+        with log_context(job_id=self._job_id):
+            self._renew_until_stopped()
+
+    def _renew_until_stopped(self) -> None:
         interval = max(1.0, self._lease_seconds / 3)
         while not self._stopped.wait(interval):
             try:
@@ -111,8 +117,24 @@ def process_job(
     lease_seconds: int,
     session_factory: SessionFactory = SessionLocal,
 ) -> JobStatus:
-    job_id, task_id, kind = job.job_id, job.task_id, job.kind
-    log_extra = {"task_id": str(task_id), "agent": "worker", "node": kind}
+    job_id, task_id = job.job_id, job.task_id
+    task = db.get(TaskRecord, task_id)
+    trace_id = task.trace_id if task is not None else None
+
+    with log_context(task_id=task_id, trace_id=trace_id, job_id=job_id):
+        return _run_job(db, job, worker_id, lease_seconds, session_factory)
+
+
+def _run_job(
+    db: Session,
+    job: TaskJobRecord,
+    worker_id: str,
+    lease_seconds: int,
+    session_factory: SessionFactory,
+) -> JobStatus:
+    job_id, kind = job.job_id, job.kind
+    log_extra = {"agent": "worker", "node": kind}
+    started = time.perf_counter()
 
     keeper = _LeaseKeeper(job_id, worker_id, lease_seconds, session_factory)
     keeper.start()
@@ -123,7 +145,16 @@ def process_job(
         handler(db, job)
     except Exception as exc:
         db.rollback()
-        logger.exception("job_failed", extra={**log_extra, "event": "job_failed"})
+        logger.exception(
+            "job_failed",
+            extra={
+                **log_extra,
+                "event": "job_failed",
+                "status": JobStatus.FAILED,
+                "error_type": type(exc).__name__,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
         claimed = db.get(TaskJobRecord, job_id)
         if claimed is not None:
             _mark_task_failed(db, claimed, type(exc).__name__)
@@ -133,7 +164,15 @@ def process_job(
         keeper.stop()
 
     finish_job(db, job, JobStatus.SUCCEEDED)
-    logger.info("job_succeeded", extra={**log_extra, "event": "job_succeeded"})
+    logger.info(
+        "job_succeeded",
+        extra={
+            **log_extra,
+            "event": "job_succeeded",
+            "status": JobStatus.SUCCEEDED,
+            "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+        },
+    )
     return JobStatus.SUCCEEDED
 
 

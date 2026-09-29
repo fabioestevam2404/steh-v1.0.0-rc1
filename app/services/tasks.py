@@ -167,8 +167,6 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
     logger.info(
         "workflow_started",
         extra={
-            "task_id": str(task_id),
-            "trace_id": str(trace_id),
             "event": "workflow_started",
             "status": "STARTED",
         },
@@ -270,8 +268,6 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
         logger.info(
             "workflow_completed",
             extra={
-                "task_id": str(task_id),
-                "trace_id": str(trace_id),
                 "event": "workflow_completed",
                 "duration_ms": round(
                     (time.perf_counter() - started) * 1000,
@@ -287,8 +283,6 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
         logger.exception(
             "workflow_failed",
             extra={
-                "task_id": str(task_id),
-                "trace_id": str(trace_id),
                 "event": "workflow_failed",
                 "status": "FAILED",
             },
