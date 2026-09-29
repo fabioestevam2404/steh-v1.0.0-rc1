@@ -68,6 +68,3 @@ def get_settings() -> Settings:
     # langgraph_database_url from environment variables / .env at runtime.
     # Static type checking cannot infer that configuration injection.
     return Settings()  # type: ignore[call-arg]
-
-
-settings = get_settings()

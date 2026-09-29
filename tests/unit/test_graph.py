@@ -5,7 +5,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from app.agents.llm_judge import LLMJudgeAgent
-from app.core.config import settings
+from app.core.config import get_settings
 from app.orchestration.graph import build_graph
 
 
@@ -156,6 +156,7 @@ def test_approved_human_review_resumes_to_completion() -> None:
 def test_disabled_judge_does_not_change_completed_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    settings = get_settings()
     monkeypatch.setattr(settings, "judge_enabled", False)
 
     result = _run_approved_workflow("judge-disabled")

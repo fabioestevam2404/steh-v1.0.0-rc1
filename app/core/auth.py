@@ -4,7 +4,7 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, Header, HTTPException, status
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 
 @dataclass(frozen=True)
@@ -16,6 +16,7 @@ class Principal:
 def get_principal(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Principal:
+    settings = get_settings()
     if not settings.auth_enabled:
         return Principal(
             subject="local-development",
@@ -55,6 +56,7 @@ def get_principal(
 def require_reviewer(
     principal: Annotated[Principal, Depends(get_principal)],
 ) -> Principal:
+    settings = get_settings()
     if settings.auth_reviewer_role not in principal.roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

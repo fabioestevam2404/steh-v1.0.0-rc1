@@ -13,6 +13,12 @@ Changes merged to `main` after `v1.0.0-rc2`. Not yet tagged.
   Validation, context, GitHub ingestion and review-claim errors are still
   returned synchronously (`409`, `422`, `403`, `404`, `502`).
 - Invalid context sources now return `422` instead of `500`.
+- `GET /ready` returns `503` when the database is unavailable (previously an
+  unhandled `500`) and receives its session through dependency injection.
+- Settings and the database engine are created on first use instead of at
+  import: `get_settings()`, `get_engine()`, `get_session_factory()` and
+  `new_session()` replace the module-level `settings`, `engine` and
+  `SessionLocal` objects.
 - Docker Compose runs migrations once in a `migrate` service; the entrypoint
   skips them when `RUN_MIGRATIONS=false`.
 
