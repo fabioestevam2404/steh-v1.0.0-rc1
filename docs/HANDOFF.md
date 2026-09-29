@@ -56,7 +56,7 @@ python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evide
 ## 4. Pendências encontradas
 
 1. ~~**CHANGELOG defasado.**~~ Seção `[Unreleased]` criada no PR #13. Falta, no próximo RC, subir `VERSION`, `app/version.py`, `pyproject.toml` e o teste `test_health_reports_application_version` juntos.
-2. **Formatação sem gate.** `ruff format --check .` aponta **55 arquivos** fora do padrão. O RC-14 só roda `ruff check`. Sugestão: um PR que só formata, sem mudança de lógica, e depois um gate `ruff format --check`.
+2. ~~**Formatação sem gate.**~~ 55 arquivos formatados (AST idêntica) e novo gate RC-14B `ruff format --check .`. O ruff foi fixado em `>=0.16,<0.17`, para que uma versão nova não mude o estilo e quebre o gate; subir de versão é um PR próprio (atualizar o pin e reformatar). O commit de formatação está em `.git-blame-ignore-revs`.
 3. **Branches já mergeados:** `feature/github-issue-analysis`, `feature/hitl-resume` e `feature/pr-review-agent` estão 0 commits à frente do `main` e podem ser apagados.
 4. ~~**`docs/GIT_WORKFLOW.md` desatualizado.**~~ Reescrito com o fluxo real (trunk-based + PR + tags de RC), e `develop` removido do gatilho do CI.
 5. ~~**README desatualizado.**~~ Diagrama de evolução e tabela de releases passam a citar as entregas pós-RC2; `docs/architecture/README.md` deixa de apontar a `v0.2.1-alpha` como baseline.

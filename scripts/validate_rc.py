@@ -94,6 +94,11 @@ GATES: list[Gate] = [
         ],
     },
     {"id": "RC-14", "name": "Ruff passes", "command": [sys.executable, "-m", "ruff", "check", "."]},
+    {
+        "id": "RC-14B",
+        "name": "Ruff format passes",
+        "command": [sys.executable, "-m", "ruff", "format", "--check", "."],
+    },
     {"id": "RC-15", "name": "mypy passes", "command": [sys.executable, "-m", "mypy", "app"]},
     {
         "id": "RC-12A",
