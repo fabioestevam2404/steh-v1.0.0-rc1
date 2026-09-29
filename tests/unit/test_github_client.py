@@ -21,9 +21,7 @@ def _reference() -> GitHubIssueReference:
 
 def test_client_builds_fixed_github_api_path_and_parses_issue() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url == httpx.URL(
-            "https://api.github.com/repos/openai/steh/issues/42"
-        )
+        assert request.url == httpx.URL("https://api.github.com/repos/openai/steh/issues/42")
         assert request.headers["authorization"] == "Bearer test-token"
         assert request.headers["x-github-api-version"] == "2026-03-10"
         return httpx.Response(

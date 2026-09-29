@@ -35,9 +35,7 @@ class ArchitectureAgent:
                 temperature=0,
             )
 
-            structured = model.with_structured_output(
-                ArchitectureResult
-            )
+            structured = model.with_structured_output(ArchitectureResult)
 
             artifact = ArchitectureResult.model_validate(
                 structured.invoke(
@@ -65,38 +63,22 @@ class ArchitectureAgent:
         else:
             artifact = ArchitectureResult.model_validate(
                 {
-                    "architecture_style": (
-                        "modular_monolith"
-                    ),
+                    "architecture_style": ("modular_monolith"),
                     "components": [
                         {
                             "name": "API Layer",
-                            "responsibility": (
-                                "Validated HTTP boundary"
-                            ),
-                            "technology_options": [
-                                "FastAPI"
-                            ],
+                            "responsibility": ("Validated HTTP boundary"),
+                            "technology_options": ["FastAPI"],
                         },
                         {
                             "name": "Agent Orchestration",
-                            "responsibility": (
-                                "Coordinate specialized agents "
-                                "and workflow state"
-                            ),
-                            "technology_options": [
-                                "LangGraph"
-                            ],
+                            "responsibility": ("Coordinate specialized agents and workflow state"),
+                            "technology_options": ["LangGraph"],
                         },
                         {
                             "name": "Persistence",
-                            "responsibility": (
-                                "Persist tasks, agent runs "
-                                "and audit events"
-                            ),
-                            "technology_options": [
-                                "PostgreSQL"
-                            ],
+                            "responsibility": ("Persist tasks, agent runs and audit events"),
+                            "technology_options": ["PostgreSQL"],
                         },
                     ],
                     "data_flow": [
@@ -117,31 +99,17 @@ class ArchitectureAgent:
                     ],
                     "observability_considerations": [
                         "Propagate trace_id",
-                        (
-                            "Persist agent runs "
-                            "and audit events"
-                        ),
+                        ("Persist agent runs and audit events"),
                     ],
                     "decisions": [
                         {
                             "title": "Modular monolith",
-                            "decision": (
-                                "Use one deployable unit initially"
-                            ),
-                            "rationale": (
-                                "Reduce distributed complexity"
-                            ),
-                            "tradeoffs": [
-                                "May require later extraction"
-                            ],
+                            "decision": ("Use one deployable unit initially"),
+                            "rationale": ("Reduce distributed complexity"),
+                            "tradeoffs": ["May require later extraction"],
                         }
                     ],
-                    "assumptions": [
-                        (
-                            "Requirements artifact is "
-                            "validated input."
-                        )
-                    ],
+                    "assumptions": [("Requirements artifact is validated input.")],
                 }
             )
 
@@ -155,9 +123,7 @@ class ArchitectureAgent:
                 "evidence": [
                     {
                         "type": "architecture_artifact",
-                        "timestamp": datetime.now(
-                            UTC
-                        ).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
                 ],
                 "confidence": confidence,

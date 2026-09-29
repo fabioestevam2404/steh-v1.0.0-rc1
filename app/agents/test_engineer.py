@@ -59,21 +59,12 @@ class TestAgent:
         return AgentResult(
             agent="test_agent",
             status="SUCCESS",
-            result=result.model_dump(
-                mode="json"
-            ),
-            findings=[
-                item.model_dump(
-                    mode="json"
-                )
-                for item in findings
-            ],
+            result=result.model_dump(mode="json"),
+            findings=[item.model_dump(mode="json") for item in findings],
             evidence=[
                 {
                     "type": "validation_evidence",
-                    "timestamp": datetime.now(
-                        UTC
-                    ).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "test_count": len(tests),
                     "scan_finding_count": len(findings),
                 }

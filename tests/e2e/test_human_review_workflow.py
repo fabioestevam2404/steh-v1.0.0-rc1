@@ -9,11 +9,7 @@ def test_human_approval_resumes_checkpoint_once() -> None:
     with TestClient(app) as client:
         created = client.post(
             "/api/v1/tasks",
-            json={
-                "request": (
-                    "Crie uma API segura e auditável para cadastro de clientes."
-                )
-            },
+            json={"request": ("Crie uma API segura e auditável para cadastro de clientes.")},
         )
         assert created.status_code == 201
         pending = created.json()
@@ -51,16 +47,11 @@ def test_human_approval_resumes_checkpoint_once() -> None:
         assert audit.status_code == 200
         events = audit.json()["events"]
         assert any(
-            event["event_type"] == "HUMAN_REVIEW_DECIDED"
-            and event["actor"] == "local-development"
+            event["event_type"] == "HUMAN_REVIEW_DECIDED" and event["actor"] == "local-development"
             for event in events
         )
         assert any(
-            event["event_type"] == "JUDGE_EVALUATION"
-            and event["payload"]["authoritative"] is False
+            event["event_type"] == "JUDGE_EVALUATION" and event["payload"]["authoritative"] is False
             for event in events
         )
-        assert any(
-            run["agent_name"] == "llm_judge_agent"
-            for run in audit.json()["agent_runs"]
-        )
+        assert any(run["agent_name"] == "llm_judge_agent" for run in audit.json()["agent_runs"])

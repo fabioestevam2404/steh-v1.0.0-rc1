@@ -17,9 +17,7 @@ _SECRET_ASSIGNMENT = re.compile(
     r"(\s*[:=]\s*)([^\s,;]+)"
 )
 _BEARER_TOKEN = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/-]+=*")
-_KNOWN_TOKEN = re.compile(
-    r"\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,})\b"
-)
+_KNOWN_TOKEN = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,})\b")
 _PRIVATE_KEY = re.compile(
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
     re.DOTALL,
@@ -45,9 +43,7 @@ def _estimate_tokens(value: str) -> int:
 def _normalize(value: str) -> str:
     normalized = value.replace("\r\n", "\n").replace("\r", "\n")
     return "".join(
-        character
-        for character in normalized
-        if character in {"\n", "\t"} or ord(character) >= 32
+        character for character in normalized if character in {"\n", "\t"} or ord(character) >= 32
     ).strip()
 
 
@@ -73,9 +69,7 @@ def sanitize_context_text(value: str) -> SanitizedContextText:
     return SanitizedContextText(
         content=redacted_content,
         redacted=redacted,
-        suspicious_instruction=any(
-            marker in lowered for marker in _INSTRUCTION_MARKERS
-        ),
+        suspicious_instruction=any(marker in lowered for marker in _INSTRUCTION_MARKERS),
     )
 
 
@@ -149,13 +143,10 @@ class ContextEngine:
             "request_sha256": request_sha256,
             "max_tokens": self.max_tokens,
             "sources": [
-                snapshot.model_dump(mode="json", exclude={"content"})
-                for snapshot in snapshots
+                snapshot.model_dump(mode="json", exclude={"content"}) for snapshot in snapshots
             ],
         }
-        bundle_sha256 = _sha256(
-            json.dumps(digest_payload, sort_keys=True, separators=(",", ":"))
-        )
+        bundle_sha256 = _sha256(json.dumps(digest_payload, sort_keys=True, separators=(",", ":")))
         return ContextBundle(
             bundle_id=f"ctx_{bundle_sha256[:16]}",
             bundle_sha256=bundle_sha256,

@@ -26,10 +26,10 @@ class SecurityAgent:
         self.api_key = api_key
 
     def run(
-    self,
-    requirements: dict[str, Any],
-    architecture: dict[str, Any],
-) -> AgentResult:
+        self,
+        requirements: dict[str, Any],
+        architecture: dict[str, Any],
+    ) -> AgentResult:
         if self.mode == "openai":
             return self._run_openai(
                 requirements,
@@ -53,9 +53,7 @@ class SecurityAgent:
             model=self.model,
             temperature=0,
             api_key=SecretStr(self.api_key),
-        ).with_structured_output(
-            SecurityReviewResult
-        )
+        ).with_structured_output(SecurityReviewResult)
 
         prompt = f"""
 You are the Security Agent of the Software Trust Engineering Harness.
@@ -88,41 +86,28 @@ ARCHITECTURE:
 
         result = llm.invoke(prompt)
 
-        validated = SecurityReviewResult.model_validate(
-            result
-        )
+        validated = SecurityReviewResult.model_validate(result)
 
         return AgentResult(
             agent="security_agent",
             status="SUCCESS",
-            result=validated.model_dump(
-                mode="json"
-            ),
-            findings=[
-                finding.model_dump(
-                    mode="json"
-                )
-                for finding in validated.findings
-            ],
+            result=validated.model_dump(mode="json"),
+            findings=[finding.model_dump(mode="json") for finding in validated.findings],
             evidence=[
                 {
                     "type": "security_review",
-                    "timestamp": datetime.now(
-                        UTC
-                    ).isoformat(),
-                    "method": (
-                        "llm_structured_output"
-                    ),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "method": ("llm_structured_output"),
                 }
             ],
             confidence=0.88,
         )
 
     def _run_stub(
-    self,
-    requirements: dict[str, Any],
-    architecture: dict[str, Any],
-) -> AgentResult:
+        self,
+        requirements: dict[str, Any],
+        architecture: dict[str, Any],
+    ) -> AgentResult:
         component_names = [
             component.get(
                 "name",
@@ -138,11 +123,7 @@ ARCHITECTURE:
             )
         ]
 
-        primary_component = (
-            component_names[0]
-            if component_names
-            else "application"
-        )
+        primary_component = component_names[0] if component_names else "application"
 
         threat_model = ThreatModel(
             assets=[
@@ -154,10 +135,7 @@ ARCHITECTURE:
             trust_boundaries=[
                 "client to API",
                 "API to persistence",
-                (
-                    "application to external "
-                    "LLM provider"
-                ),
+                ("application to external LLM provider"),
             ],
             entry_points=[
                 "HTTP API",
@@ -167,105 +145,52 @@ ARCHITECTURE:
             threats=[
                 Threat(
                     category="Spoofing",
-                    description=(
-                        "Unauthorized actor may "
-                        "impersonate a legitimate user."
-                    ),
-                    affected_asset=(
-                        "user identities"
-                    ),
+                    description=("Unauthorized actor may impersonate a legitimate user."),
+                    affected_asset=("user identities"),
                     attack_surface="HTTP API",
-                    mitigation=(
-                        "Require authenticated identities "
-                        "and strong authorization."
-                    ),
+                    mitigation=("Require authenticated identities and strong authorization."),
                 ),
                 Threat(
                     category="Tampering",
-                    description=(
-                        "Task or audit data may be "
-                        "modified without authorization."
-                    ),
+                    description=("Task or audit data may be modified without authorization."),
                     affected_asset="audit evidence",
-                    attack_surface=(
-                        "persistence layer"
-                    ),
+                    attack_surface=("persistence layer"),
                     mitigation=(
-                        "Restrict write permissions "
-                        "and preserve append-only "
-                        "audit semantics."
+                        "Restrict write permissions and preserve append-only audit semantics."
                     ),
                 ),
                 Threat(
-                    category=(
-                        "Information Disclosure"
-                    ),
-                    description=(
-                        "Sensitive information may "
-                        "leak through prompts or logs."
-                    ),
-                    affected_asset=(
-                        "application data"
-                    ),
-                    attack_surface=(
-                        "LLM and structured logs"
-                    ),
+                    category=("Information Disclosure"),
+                    description=("Sensitive information may leak through prompts or logs."),
+                    affected_asset=("application data"),
+                    attack_surface=("LLM and structured logs"),
                     mitigation=(
-                        "Redact secrets and minimize "
-                        "sensitive data sent to "
-                        "external providers."
+                        "Redact secrets and minimize sensitive data sent to external providers."
                     ),
                 ),
             ],
             controls=[
                 "input validation",
-                (
-                    "least privilege database "
-                    "credentials"
-                ),
+                ("least privilege database credentials"),
                 "structured audit events",
                 "secret redaction",
             ],
             residual_risks=[
-                (
-                    "authentication and authorization "
-                    "are not implemented in this alpha"
-                ),
-                (
-                    "external LLM data handling depends "
-                    "on provider configuration"
-                ),
+                ("authentication and authorization are not implemented in this alpha"),
+                ("external LLM data handling depends on provider configuration"),
             ],
             security_requirements=[
-                (
-                    "authenticate API consumers "
-                    "before production exposure"
-                ),
-                (
-                    "authorize access to task "
-                    "and audit resources"
-                ),
-                (
-                    "never persist secrets "
-                    "in logs or prompts"
-                ),
-                (
-                    "enforce least privilege for "
-                    "application database access"
-                ),
-                (
-                    "preserve traceable evidence "
-                    "for security decisions"
-                ),
+                ("authenticate API consumers before production exposure"),
+                ("authorize access to task and audit resources"),
+                ("never persist secrets in logs or prompts"),
+                ("enforce least privilege for application database access"),
+                ("preserve traceable evidence for security decisions"),
             ],
         )
 
         findings = [
             SecurityFinding(
-                title=(
-                    "API authentication "
-                    "not implemented"
-                ),
+                title=("API authentication not implemented"),
                 description=(
                     "The current alpha exposes task "
                     "endpoints without an application "
@@ -273,27 +198,17 @@ ARCHITECTURE:
                 ),
                 severity=Severity.HIGH,
                 category="Authentication",
-                affected_component=(
-                    primary_component
-                ),
+                affected_component=(primary_component),
                 threat="Spoofing",
                 recommendation=(
                     "Introduce authenticated principals "
                     "and authorization before non-local "
                     "or production exposure."
                 ),
-                evidence=[
-                    (
-                        "Alpha 0.3 intentionally has no "
-                        "API authentication layer."
-                    )
-                ],
+                evidence=[("Alpha 0.3 intentionally has no API authentication layer.")],
             ),
             SecurityFinding(
-                title=(
-                    "Audit immutability is not "
-                    "database-enforced"
-                ),
+                title=("Audit immutability is not database-enforced"),
                 description=(
                     "Audit events are recorded, but "
                     "append-only semantics are not "
@@ -310,12 +225,7 @@ ARCHITECTURE:
                     "audit events in a later hardening "
                     "release."
                 ),
-                evidence=[
-                    (
-                        "AuditEventRecord remains "
-                        "writable by the application role."
-                    )
-                ],
+                evidence=[("AuditEventRecord remains writable by the application role.")],
             ),
         ]
 
@@ -334,24 +244,13 @@ ARCHITECTURE:
         return AgentResult(
             agent="security_agent",
             status="SUCCESS",
-            result=review.model_dump(
-                mode="json"
-            ),
-            findings=[
-                finding.model_dump(
-                    mode="json"
-                )
-                for finding in findings
-            ],
+            result=review.model_dump(mode="json"),
+            findings=[finding.model_dump(mode="json") for finding in findings],
             evidence=[
                 {
                     "type": "security_review",
-                    "timestamp": datetime.now(
-                        UTC
-                    ).isoformat(),
-                    "method": (
-                        "deterministic_stub"
-                    ),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "method": ("deterministic_stub"),
                 }
             ],
             confidence=0.65,

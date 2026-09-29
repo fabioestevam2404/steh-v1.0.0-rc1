@@ -29,9 +29,7 @@ class RequirementsAgent:
             from langchain_openai import ChatOpenAI
 
             if not self.api_key:
-                raise RuntimeError(
-                    "OPENAI_API_KEY required"
-                )
+                raise RuntimeError("OPENAI_API_KEY required")
 
             model = ChatOpenAI(
                 model=self.model_name,
@@ -39,9 +37,7 @@ class RequirementsAgent:
                 temperature=0,
             )
 
-            structured = model.with_structured_output(
-                RequirementsResult
-            )
+            structured = model.with_structured_output(RequirementsResult)
 
             artifact = RequirementsResult.model_validate(
                 structured.invoke(
@@ -73,34 +69,14 @@ class RequirementsAgent:
 
         else:
             artifact = RequirementsResult(
-                functional_requirements=[
-                    (
-                        "Atender ao objetivo descrito "
-                        "na solicitação."
-                    )
-                ],
-                non_functional_requirements=[
-                    (
-                        "Ser testável, observável e "
-                        "segura por padrão."
-                    )
-                ],
+                functional_requirements=[("Atender ao objetivo descrito na solicitação.")],
+                non_functional_requirements=[("Ser testável, observável e segura por padrão.")],
                 acceptance_criteria=[
                     "Fluxo principal executável.",
                     "Entradas inválidas rejeitadas.",
                 ],
-                assumptions=[
-                    (
-                        "Regras não explicitadas permanecem "
-                        "como premissas."
-                    )
-                ],
-                open_questions=[
-                    (
-                        "Quais SLAs e regras específicas "
-                        "de negócio se aplicam?"
-                    )
-                ],
+                assumptions=[("Regras não explicitadas permanecem como premissas.")],
+                open_questions=[("Quais SLAs e regras específicas de negócio se aplicam?")],
             )
 
             confidence = 0.50
@@ -112,12 +88,8 @@ class RequirementsAgent:
             evidence=[
                 {
                     "type": "requirements_artifact",
-                    "timestamp": datetime.now(
-                        UTC
-                    ).isoformat(),
-                    "context_bundle_id": (
-                        context.bundle_id if context is not None else None
-                    ),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "context_bundle_id": (context.bundle_id if context is not None else None),
                 }
             ],
             confidence=confidence,

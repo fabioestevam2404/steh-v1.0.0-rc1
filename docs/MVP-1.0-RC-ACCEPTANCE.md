@@ -29,7 +29,7 @@ The validator performs a destructive downgrade to Alembic `base`. It requires
 | RC-11 | Metrics expose operational counters | metrics tests |
 | RC-12 | Semgrep, Gitleaks and Trivy image builds and runs | Docker build and smoke commands |
 | RC-13 | External scanner isolation is verified | scanner and process-runner tests |
-| RC-14 | Ruff passes | `ruff check .` |
+| RC-14 | Ruff lint and format pass | `ruff check .` and `ruff format --check .` |
 | RC-15 | mypy strict passes | `mypy app` |
 | RC-16 | CI completes for the candidate commit | GitHub Actions result plus JSON artifact |
 

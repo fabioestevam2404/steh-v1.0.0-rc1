@@ -101,9 +101,7 @@ def _response(record: TaskRecord) -> TaskResponse:
         risk_level=record.risk_level,
         implementation=record.implementation,
         test_plan=(
-            TestPlan.model_validate(record.test_plan)
-            if record.test_plan is not None
-            else None
+            TestPlan.model_validate(record.test_plan) if record.test_plan is not None else None
         ),
         validation=record.validation,
         rework_count=record.rework_count,
@@ -120,9 +118,7 @@ def _response(record: TaskRecord) -> TaskResponse:
             else None
         ),
         source_issue=(
-            github_issue_receipt(
-                GitHubIssueSnapshot.model_validate(record.source_issue)
-            )
+            github_issue_receipt(GitHubIssueSnapshot.model_validate(record.source_issue))
             if record.source_issue is not None
             else None
         ),
@@ -133,17 +129,13 @@ def _response(record: TaskRecord) -> TaskResponse:
         ),
         source_pull_request=(
             github_pull_request_receipt(
-                GitHubPullRequestSnapshot.model_validate(
-                    record.source_pull_request
-                )
+                GitHubPullRequestSnapshot.model_validate(record.source_pull_request)
             )
             if record.source_pull_request is not None
             else None
         ),
         pull_request_review=(
-            PullRequestReviewArtifact.model_validate(
-                record.pull_request_review
-            )
+            PullRequestReviewArtifact.model_validate(record.pull_request_review)
             if record.pull_request_review is not None
             else None
         ),
@@ -225,9 +217,7 @@ def create_task_from_issue(
     reader: IssueReader,
 ) -> TaskResponse:
     try:
-        return _response(
-            create_task_from_github_issue(db, payload.issue, reader)
-        )
+        return _response(create_task_from_github_issue(db, payload.issue, reader))
     except GitHubRepositoryNotAllowedError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -456,41 +446,28 @@ def external_validation(
         )
 
     try:
-        evidence = ExternalValidationService().run(
-            str(task_id)
-        )
+        evidence = ExternalValidationService().run(str(task_id))
 
     except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail=(
-                "External validation unavailable: "
-                f"{type(exc).__name__}"
-            ),
+            detail=(f"External validation unavailable: {type(exc).__name__}"),
         ) from exc
 
-    serialized = [
-        item.model_dump(mode="json")
-        for item in evidence
-    ]
+    serialized = [item.model_dump(mode="json") for item in evidence]
 
     reasons = []
 
     for item in serialized:
         if not item["success"]:
-            reasons.append(
-                f'{item["scanner"]}: scanner execution failed'
-            )
+            reasons.append(f"{item['scanner']}: scanner execution failed")
 
         for finding in item["findings"]:
             if finding.get("severity") in {
                 "HIGH",
                 "CRITICAL",
             }:
-                reasons.append(
-                    f'{item["scanner"]}: '
-                    f'{finding.get("rule_id", "finding")}'
-                )
+                reasons.append(f"{item['scanner']}: {finding.get('rule_id', 'finding')}")
 
     decision = ReworkController().decide(
         record.rework_count + 1,
@@ -498,9 +475,7 @@ def external_validation(
     )
 
     record.external_scan = serialized
-    record.rework_decision = decision.model_dump(
-        mode="json"
-    )
+    record.rework_decision = decision.model_dump(mode="json")
     record.rework_count = decision.attempt
 
     if decision.exhausted:

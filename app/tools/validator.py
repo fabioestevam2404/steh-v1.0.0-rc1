@@ -34,25 +34,31 @@ class ControlledValidator:
             rel = str(path.relative_to(self.gateway.workspace_for(task_id)))
             try:
                 ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-                evidence.append(TestEvidence(
-                    name=f"python_syntax:{rel}",
-                    status=ValidationStatus.PASS,
-                    details="Python AST parse succeeded.",
-                    artifact=rel,
-                ))
+                evidence.append(
+                    TestEvidence(
+                        name=f"python_syntax:{rel}",
+                        status=ValidationStatus.PASS,
+                        details="Python AST parse succeeded.",
+                        artifact=rel,
+                    )
+                )
             except SyntaxError as exc:
-                evidence.append(TestEvidence(
-                    name=f"python_syntax:{rel}",
-                    status=ValidationStatus.FAIL,
-                    details=f"Syntax error: {exc.msg} line {exc.lineno}",
-                    artifact=rel,
-                ))
+                evidence.append(
+                    TestEvidence(
+                        name=f"python_syntax:{rel}",
+                        status=ValidationStatus.FAIL,
+                        details=f"Syntax error: {exc.msg} line {exc.lineno}",
+                        artifact=rel,
+                    )
+                )
         if not evidence:
-            evidence.append(TestEvidence(
-                name="python_syntax",
-                status=ValidationStatus.SKIPPED,
-                details="No Python files found.",
-            ))
+            evidence.append(
+                TestEvidence(
+                    name="python_syntax",
+                    status=ValidationStatus.SKIPPED,
+                    details="No Python files found.",
+                )
+            )
         return evidence
 
     def secret_scan(self, task_id: str) -> list[ScanFinding]:
@@ -66,13 +72,15 @@ class ControlledValidator:
             rel = str(path.relative_to(workspace))
             for rule_id, pattern in _SECRET_PATTERNS:
                 if pattern.search(text):
-                    findings.append(ScanFinding(
-                        scanner="secret_scan",
-                        rule_id=rule_id,
-                        severity="CRITICAL",
-                        path=rel,
-                        message="Potential hard-coded secret detected.",
-                    ))
+                    findings.append(
+                        ScanFinding(
+                            scanner="secret_scan",
+                            rule_id=rule_id,
+                            severity="CRITICAL",
+                            path=rel,
+                            message="Potential hard-coded secret detected.",
+                        )
+                    )
         return findings
 
     def sast_scan(self, task_id: str) -> list[ScanFinding]:
@@ -85,11 +93,13 @@ class ControlledValidator:
             rel = str(path.relative_to(workspace))
             for rule_id, pattern, message in _DANGEROUS_PATTERNS:
                 if pattern.search(text):
-                    findings.append(ScanFinding(
-                        scanner="builtin_sast",
-                        rule_id=rule_id,
-                        severity="HIGH",
-                        path=rel,
-                        message=message,
-                    ))
+                    findings.append(
+                        ScanFinding(
+                            scanner="builtin_sast",
+                            rule_id=rule_id,
+                            severity="HIGH",
+                            path=rel,
+                            message=message,
+                        )
+                    )
         return findings

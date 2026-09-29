@@ -23,6 +23,4 @@ def test_security_agent_stub_returns_threat_model_and_findings() -> None:
     assert review["threat_model"]["assets"]
     assert review["threat_model"]["threats"]
     assert review["findings"]
-    assert review["overall_risk"] in {
-        "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
-    }
+    assert review["overall_risk"] in {"INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"}

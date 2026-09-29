@@ -7,9 +7,7 @@ from app.models.scanning import ReworkDecision
 
 class ReworkController:
     def __init__(self, policy_path: str = "policies/execution.yaml") -> None:
-        self.policy = yaml.safe_load(
-            Path(policy_path).read_text(encoding="utf-8")
-        )
+        self.policy = yaml.safe_load(Path(policy_path).read_text(encoding="utf-8"))
 
     @property
     def automatic(self) -> bool:

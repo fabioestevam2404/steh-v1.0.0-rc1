@@ -49,18 +49,11 @@ def render() -> str:
             lines.append(metric)
 
         lines += [
-            (
-                "# HELP steh_workflows_total "
-                "Workflow terminal states."
-            ),
+            ("# HELP steh_workflows_total Workflow terminal states."),
             "# TYPE steh_workflows_total counter",
         ]
 
         for status, value in sorted(_workflows.items()):
-            lines.append(
-                "steh_workflows_total"
-                f'{{status="{status}"}} '
-                f"{value}"
-            )
+            lines.append(f'steh_workflows_total{{status="{status}"}} {value}')
 
     return "\n".join(lines) + "\n"

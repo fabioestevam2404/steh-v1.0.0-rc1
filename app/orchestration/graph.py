@@ -89,9 +89,7 @@ def build_graph(
         settings.openai_api_key,
     )
 
-    policy_engine = PolicyEngine(
-        load_policy_config(settings.policy_file)
-    )
+    policy_engine = PolicyEngine(load_policy_config(settings.policy_file))
     rework_controller = ReworkController()
     context_engine = ContextEngine(
         max_sources=settings.context_max_sources,
@@ -157,17 +155,10 @@ def build_graph(
             ),
         ]
 
-        blocked = any(
-            not decision.passed
-            and decision.action == "BLOCK"
-            for decision in decisions
-        )
+        blocked = any(not decision.passed and decision.action == "BLOCK" for decision in decisions)
 
         return {
-            "policy_results": [
-                decision.__dict__
-                for decision in decisions
-            ],
+            "policy_results": [decision.__dict__ for decision in decisions],
             "blocked": blocked,
         }
 
@@ -201,9 +192,7 @@ def build_graph(
         state: EngineeringState,
     ) -> StateUpdate:
         def call() -> AgentResult:
-            return architecture_agent.run(
-                state["requirements"]
-            )
+            return architecture_agent.run(state["requirements"])
 
         result = (
             lifecycle.execute(
@@ -297,15 +286,11 @@ def build_graph(
         ]
 
         hard_block = any(
-            not decision.passed
-            and decision.action == "BLOCK"
-            for decision in decisions
+            not decision.passed and decision.action == "BLOCK" for decision in decisions
         )
 
         human_review = any(
-            not decision.passed
-            and decision.action == "HUMAN_REVIEW"
-            for decision in decisions
+            not decision.passed and decision.action == "HUMAN_REVIEW" for decision in decisions
         )
 
         if hard_block:
@@ -321,10 +306,7 @@ def build_graph(
                     "policy_results",
                     [],
                 ),
-                *[
-                    decision.__dict__
-                    for decision in decisions
-                ],
+                *[decision.__dict__ for decision in decisions],
             ],
             "blocked": hard_block,
             "status": status,
@@ -348,8 +330,7 @@ def build_graph(
         review = HumanReviewArtifact(
             status=HumanReviewStatus.PENDING,
             requested_at=requested_at,
-            expires_at=requested_at
-            + timedelta(minutes=settings.human_review_ttl_minutes),
+            expires_at=requested_at + timedelta(minutes=settings.human_review_ttl_minutes),
             policy_result_count=len(state.get("policy_results", [])),
         )
         return {
@@ -393,11 +374,7 @@ def build_graph(
         }
 
     def route_after_human_review(state: EngineeringState) -> str:
-        return (
-            "test_planning"
-            if state.get("status") == "READY_FOR_IMPLEMENTATION"
-            else "blocked"
-        )
+        return "test_planning" if state.get("status") == "READY_FOR_IMPLEMENTATION" else "blocked"
 
     def test_planning(state: EngineeringState) -> StateUpdate:
         def call() -> AgentResult:
@@ -478,11 +455,7 @@ def build_graph(
                 decision.__dict__,
             ],
             "blocked": not decision.passed,
-            "status": (
-                "BLOCKED"
-                if not decision.passed
-                else "IMPLEMENTING"
-            ),
+            "status": ("BLOCKED" if not decision.passed else "IMPLEMENTING"),
         }
 
     def route_after_implementation(state: EngineeringState) -> str:
@@ -559,10 +532,7 @@ def build_graph(
                     "policy_results",
                     [],
                 ),
-                *[
-                    decision.__dict__
-                    for decision in decisions
-                ],
+                *[decision.__dict__ for decision in decisions],
             ],
             "status": next_status,
             "rework_count": decision.attempt,
@@ -604,6 +574,7 @@ def build_graph(
                 )
                 run: dict[str, Any] = {}
             else:
+
                 def call() -> AgentResult:
                     return judge_agent.run(
                         rubric,
@@ -611,11 +582,7 @@ def build_graph(
                         judge_artifacts(state),
                     )
 
-                result = (
-                    lifecycle.execute(judge_agent.name, call)
-                    if lifecycle
-                    else call()
-                )
+                result = lifecycle.execute(judge_agent.name, call) if lifecycle else call()
                 evaluation = JudgeEvaluationArtifact.model_validate(result.result)
                 run = result.model_dump(mode="json")
         except Exception as exc:
@@ -646,11 +613,7 @@ def build_graph(
     def route_after_requirements(
         state: EngineeringState,
     ) -> str:
-        return (
-            "blocked"
-            if state.get("blocked")
-            else "specification"
-        )
+        return "blocked" if state.get("blocked") else "specification"
 
     def route_after_specification(state: EngineeringState) -> str:
         return "blocked" if state.get("blocked") else "architecture"
@@ -658,11 +621,7 @@ def build_graph(
     def route_after_architecture(
         state: EngineeringState,
     ) -> str:
-        return (
-            "blocked"
-            if state.get("blocked")
-            else "security"
-        )
+        return "blocked" if state.get("blocked") else "security"
 
     def route_after_test_plan(state: EngineeringState) -> str:
         return "blocked" if state.get("blocked") else "implementation"
@@ -857,6 +816,4 @@ def build_graph(
         END,
     )
 
-    return builder.compile(
-        checkpointer=checkpointer or get_checkpointer()
-    )
+    return builder.compile(checkpointer=checkpointer or get_checkpointer())

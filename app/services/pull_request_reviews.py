@@ -48,9 +48,7 @@ def sanitize_github_pull_request(
     files: list[PullRequestFileSnapshot] = []
     any_redacted = title.redacted or body.redacted or author.redacted
     any_suspicious = (
-        title.suspicious_instruction
-        or body.suspicious_instruction
-        or author.suspicious_instruction
+        title.suspicious_instruction or body.suspicious_instruction or author.suspicious_instruction
     )
     any_truncated = pull_request.files_truncated
 
@@ -86,9 +84,7 @@ def sanitize_github_pull_request(
                 deletions=item.deletions,
                 changes=item.changes,
                 patch=safe_patch,
-                previous_filename=(
-                    previous.content if previous is not None else None
-                ),
+                previous_filename=(previous.content if previous is not None else None),
                 patch_sha256=_sha256(safe_patch),
                 redacted=file_redacted,
                 suspicious_instruction=file_suspicious,
@@ -173,9 +169,7 @@ def _context_source(
 ) -> ContextSourceInput:
     repository_id = _sha256(pull_request.repository.casefold())[:16]
     return ContextSourceInput(
-        source_id=(
-            f"github/pulls/{repository_id}/{pull_request.pull_number}"
-        ),
+        source_id=(f"github/pulls/{repository_id}/{pull_request.pull_number}"),
         kind=ContextKind.REPOSITORY,
         version=pull_request.head_sha,
         content=pull_request.model_dump_json(),

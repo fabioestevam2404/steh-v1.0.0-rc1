@@ -12,9 +12,7 @@ def init_checkpointer() -> PostgresSaver:
     if _checkpointer is not None:
         return _checkpointer
 
-    _checkpointer_cm = PostgresSaver.from_conn_string(
-        settings.langgraph_database_url
-    )
+    _checkpointer_cm = PostgresSaver.from_conn_string(settings.langgraph_database_url)
     _checkpointer = _checkpointer_cm.__enter__()
     _checkpointer.setup()
 
