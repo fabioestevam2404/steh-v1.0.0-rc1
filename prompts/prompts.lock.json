@@ -1,0 +1,38 @@
+{
+  "architecture": {
+    "version": "1.0",
+    "sha256": "1706c68e57dd5dc9405ba11c427f920a8a21392454d972fc925c6c2f1f76775e"
+  },
+  "github_issue_analysis": {
+    "version": "1.0",
+    "sha256": "967f882d096592754e8f692e5d161a4b8ef970ccb89cf918407d47e613230ab3"
+  },
+  "implementation": {
+    "version": "1.0",
+    "sha256": "9c122b3ed729e751a8a387efc9cf1e0ba2f8184da2f7f4b92840d11dbe1f66b7"
+  },
+  "llm_judge": {
+    "version": "1.0",
+    "sha256": "7f557af4d651aa70274494276d3d42376087e4d7c4e24314199744e719948884"
+  },
+  "pull_request_review": {
+    "version": "1.0",
+    "sha256": "845ede058cbc0e46edbc14b8597803021dcd49d438f4f2f4da4b2e31ba1885e0"
+  },
+  "requirements": {
+    "version": "1.0",
+    "sha256": "2775017305599e0fdfa56fd7521b5c1633eeda0718e17d8299246340902606a2"
+  },
+  "security": {
+    "version": "1.0",
+    "sha256": "f33e2b266936f930251153f6c1d139a4c3a158377e54bb9d3723c3d2e2e28ee8"
+  },
+  "specification": {
+    "version": "1.0",
+    "sha256": "83408282d9ebb1bca7e49c3507cf619e5e54a908bd0c67472cee82d03af005b2"
+  },
+  "test_planning": {
+    "version": "1.0",
+    "sha256": "a6812a182c3c456995969bf69ec7b71e7f920dacb34ac2941f662f1ee30459a8"
+  }
+}

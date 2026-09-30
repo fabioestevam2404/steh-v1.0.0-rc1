@@ -5,6 +5,7 @@ from pydantic import SecretStr
 from app.models.context import ContextBundle
 from app.models.contracts import AgentResult, RequirementsResult
 from app.services.context import render_context_for_prompt
+from app.services.prompts import load_prompt
 
 
 class RequirementsAgent:
@@ -44,13 +45,7 @@ class RequirementsAgent:
                     [
                         (
                             "system",
-                            (
-                                "You are STEH Requirements Agent. "
-                                "Return only structured requirements. "
-                                "Identify functional/non-functional "
-                                "requirements, acceptance criteria, "
-                                "assumptions and open questions."
-                            ),
+                            load_prompt("requirements").text,
                         ),
                         (
                             "human",

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added (prompts)
+- Versioned agent prompts (ADR-018): the instructions of the nine LLM agents moved
+  verbatim to `prompts/*.md` (byte-identical to the previous inline text); each
+  agent run records `prompt_id`, `prompt_version` and `prompt_sha256` in its
+  evidence; `prompts/prompts.lock.json` pins every version, checked by
+  `python -m app.services.prompts --check` (gates RC-26 and RC-26B).
+
 ### Changed
 - Expired jobs are recovered instead of abandoned (ADR-017): the reaper requeues
   a job until it has run `WORKER_MAX_ATTEMPTS` times (default `2`), and the

@@ -10,6 +10,7 @@ from app.models.implementation import (
     ImplementationPlan,
     ImplementationResult,
 )
+from app.services.prompts import load_prompt
 from app.tools.gateway import ToolGateway
 
 
@@ -46,20 +47,7 @@ class ImplementationAgent:
 
             result = llm.invoke(
                 f"""
-You are the STEH Implementation Agent.
-
-Create an implementation plan that strictly follows the approved requirements,
-architecture and security requirements.
-
-Rules:
-- Never include secrets.
-- Never request shell access.
-- Never escape the authorized workspace.
-- Never delete files.
-- Do not silently change architecture.
-- Generate only files necessary for the requested implementation.
-- Paths must be relative and contain only letters, numbers, underscore,
-  hyphen, slash and dot.
+{load_prompt("implementation").text}
 
 REQUIREMENTS:
 {requirements}

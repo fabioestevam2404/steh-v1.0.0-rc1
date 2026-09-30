@@ -6,6 +6,7 @@ from pydantic import SecretStr
 
 from app.models.contracts import AgentResult
 from app.models.test_plan import PlannedTestCase, TestPlan, TestType
+from app.services.prompts import load_prompt
 
 
 class TestPlanningAgent:
@@ -32,8 +33,7 @@ class TestPlanningAgent:
             ).with_structured_output(TestPlan)
             plan = TestPlan.model_validate(
                 llm.invoke(
-                    "Create a test plan before implementation. Cover every "
-                    "requirement identifier and include negative security tests.\n\n"
+                    f"{load_prompt('test_planning').text}\n\n"
                     f"SPECIFICATION:\n{specification}\n\n"
                     f"ARCHITECTURE:\n{architecture}\n\n"
                     f"SECURITY REVIEW:\n{security_review}"

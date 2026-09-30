@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import SecretStr
 
 from app.models.contracts import AgentResult, ArchitectureResult
+from app.services.prompts import load_prompt
 
 
 class ArchitectureAgent:
@@ -42,13 +43,7 @@ class ArchitectureAgent:
                     [
                         (
                             "system",
-                            (
-                                "You are STEH Architecture Agent. "
-                                "Prioritize security, observability, "
-                                "auditability, scalability, reliability "
-                                "and explicit tradeoffs. Return only "
-                                "structured architecture."
-                            ),
+                            load_prompt("architecture").text,
                         ),
                         (
                             "human",

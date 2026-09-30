@@ -11,6 +11,7 @@ from app.models.specification import (
     SoftwareSpecification,
     SpecificationRequirement,
 )
+from app.services.prompts import load_prompt
 
 
 class SpecificationAgent:
@@ -29,12 +30,7 @@ class SpecificationAgent:
                 api_key=SecretStr(self.api_key),
             ).with_structured_output(SoftwareSpecification)
             specification = SoftwareSpecification.model_validate(
-                llm.invoke(
-                    "Create an implementation-ready software specification. "
-                    "Assign stable FR-### and NFR-### identifiers and express "
-                    "acceptance scenarios with explicit Given, When and Then.\n\n"
-                    f"REQUIREMENTS:\n{requirements}"
-                )
+                llm.invoke(f"{load_prompt('specification').text}\n\nREQUIREMENTS:\n{requirements}")
             )
         else:
             specification = SoftwareSpecification(

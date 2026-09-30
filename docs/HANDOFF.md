@@ -46,7 +46,7 @@ python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evide
 
 Todas as dívidas levantadas na conferência de 2026-09-29 foram resolvidas (PRs #13 a #20), exceto:
 
-1. **Prompts só no código.** Cada agente tem o prompt inline, sem versão nem hash na evidência (ao contrário da rubrica do Judge). Mudar um prompt exige mudar código.
+1. ~~**Prompts só no código.**~~ Resolvido (ADR-018): instruções em `prompts/*.md` versionadas, hash fixado em `prompts/prompts.lock.json` e recibo do prompt na evidência de cada execução de agente.
 2. ~~**Lacunas de teste nos critérios de aceite.**~~ Cobertas depois do RC3: revisão expirada bloqueia antes da implementação (RC-19), veredito `FAIL` do Judge mantém a tarefa `COMPLETED` (RC-23) e tarefa/reivindicação nunca ficam gravadas sem o job quando a gravação do job falha (RC-24; o teste falha se a atomicidade for removida).
 3. ~~**Validação aprovava workspace vazio.**~~ Corrigido: o teste `workspace_integrity` falha se a implementação não declarou arquivos ou se algum arquivo declarado não está no workspace.
 4. **Operação da fila:** ~~sem métricas~~ o `/metrics` expõe tarefas por status, jobs por tipo/status, idade do job mais antigo na fila, leases vencidos e duração dos jobs (lidos do Postgres). Retomada implementada (ADR-017): jobs com lease vencido voltam à fila até `WORKER_MAX_ATTEMPTS` e continuam do último checkpoint. Limitação conhecida: se o worker morrer enquanto grava os eventos pós-workflow, alguns `POLICY_DECISION`/`REWORK_DECISION` podem ser duplicados.
