@@ -54,6 +54,7 @@ class Settings(BaseSettings):
 
     worker_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=60.0)
     worker_lease_seconds: int = Field(default=300, ge=30, le=3600)
+    worker_max_attempts: int = Field(default=2, ge=1, le=5)
 
     model_config = SettingsConfigDict(
         env_file=".env",

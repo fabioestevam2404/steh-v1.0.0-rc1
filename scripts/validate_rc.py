@@ -197,11 +197,12 @@ GATES: list[Gate] = [
     },
     {
         "id": "RC-24",
-        "name": "Asynchronous execution queue is durable and fails closed",
+        "name": "Asynchronous queue is durable, recovers from checkpoints and fails closed",
         "command": [
             sys.executable,
             "-m",
             "pytest",
+            "tests/unit/test_job_recovery.py",
             "tests/integration/test_task_jobs.py",
             "tests/e2e/test_task_workflow.py",
             "-q",

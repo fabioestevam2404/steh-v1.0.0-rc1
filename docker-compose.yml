@@ -33,6 +33,9 @@ services:
   api:
     image: steh-app:local
     pull_policy: never
+    volumes:
+      # Shared implementation workspace so a recovered job finds its files (ADR-017).
+      - steh_workspaces:/tmp/steh-workspaces
     env_file:
       - .env
     environment:
@@ -48,6 +51,9 @@ services:
   worker:
     image: steh-app:local
     pull_policy: never
+    volumes:
+      # Shared implementation workspace so a recovered job finds its files (ADR-017).
+      - steh_workspaces:/tmp/steh-workspaces
     env_file:
       - .env
     environment:
@@ -70,3 +76,4 @@ services:
 
 volumes:
   steh_postgres_data:
+  steh_workspaces:

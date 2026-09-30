@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+- Expired jobs are recovered instead of abandoned (ADR-017): the reaper requeues
+  a job until it has run `WORKER_MAX_ATTEMPTS` times (default `2`), and the
+  retry resumes from the last LangGraph checkpoint, so only the interrupted
+  node runs again. Agent runs left `STARTED` by the dead worker become
+  `ABANDONED`; new audit events `TASK_RECOVERY_SCHEDULED` and `TASK_RECOVERED`.
+  `WORKER_MAX_ATTEMPTS=1` restores the previous fail-closed behavior.
+- Workflow checkpoints are written with `durability="sync"`.
+- Docker Compose shares the implementation workspace between `api` and
+  `worker` through the `steh_workspaces` volume.
+
 ### Added
 - Queue and task metrics on `/metrics`, read from PostgreSQL at scrape time:
   `steh_tasks{status}`, `steh_task_jobs{kind,status}`,

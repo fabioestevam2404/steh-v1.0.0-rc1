@@ -9,8 +9,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 
+from app.agents.architecture import ArchitectureAgent
 from app.core.logging import build_handler
-from app.db.models import AuditEventRecord, TaskJobRecord, TaskRecord
+from app.db.models import AgentRunRecord, AuditEventRecord, TaskJobRecord, TaskRecord
 from app.db.session import new_session
 from app.models.contracts import TaskCreate, TaskStatus, ids, utc_now
 from app.models.human_review import HumanReviewArtifact, HumanReviewDecision, HumanReviewStatus
@@ -54,11 +55,13 @@ def _event_types(task_id: object) -> set[str]:
         )
 
 
-def _drain_queued() -> None:
-    """Keep these tests independent of jobs left over by other tests."""
+def _clear_active_jobs() -> None:
+    """Keep these tests independent of queued or running jobs left by other tests."""
     with new_session() as db:
         for job in db.execute(
-            select(TaskJobRecord).where(TaskJobRecord.status == JobStatus.QUEUED)
+            select(TaskJobRecord).where(
+                TaskJobRecord.status.in_([JobStatus.QUEUED, JobStatus.RUNNING])
+            )
         ).scalars():
             job.status = JobStatus.FAILED
             job.last_error = "IntegrationTestCleanup"
@@ -67,7 +70,7 @@ def _drain_queued() -> None:
 
 @pytest.mark.integration
 def test_concurrent_workers_skip_locked_jobs() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     first_task, second_task = _new_task(), _new_task()
     with new_session() as db:
         first = enqueue_job(db, db.merge(first_task), JobKind.EXECUTE_TASK)
@@ -92,7 +95,7 @@ def test_concurrent_workers_skip_locked_jobs() -> None:
 
 @pytest.mark.integration
 def test_expired_lease_abandons_task_without_retry() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     task = _new_task()
     with new_session() as db:
         job = enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK)
@@ -118,7 +121,7 @@ def test_expired_lease_abandons_task_without_retry() -> None:
 
 @pytest.mark.integration
 def test_failed_job_marks_task_failed_and_records_error_type() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     task = _new_task()
     with new_session() as db:
         # No context bundle was persisted, so the workflow handler must fail.
@@ -144,7 +147,7 @@ def test_failed_job_marks_task_failed_and_records_error_type() -> None:
 
 @pytest.mark.integration
 def test_lease_renewal_requires_owning_worker() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     task = _new_task()
     with new_session() as db:
         enqueue_job(db, db.merge(task), JobKind.EXECUTE_TASK)
@@ -163,7 +166,7 @@ def test_lease_renewal_requires_owning_worker() -> None:
 
 @pytest.mark.integration
 def test_worker_logs_carry_task_trace_and_job_ids() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     task = _new_task()
     stream = io.StringIO()
     handler = build_handler(stream)
@@ -258,7 +261,7 @@ def _metric(payload: str, name: str) -> float:
 
 @pytest.mark.integration
 def test_queue_metrics_reflect_database_state() -> None:
-    _drain_queued()
+    _clear_active_jobs()
     queued_task, expired_task = _new_task(), _new_task()
     with new_session() as db:
         enqueue_job(db, db.merge(queued_task), JobKind.EXECUTE_TASK)
@@ -281,3 +284,70 @@ def test_queue_metrics_reflect_database_state() -> None:
     assert _metric(payload, "steh_task_jobs_expired_leases") >= 1
     assert _metric(payload, "steh_task_jobs_oldest_queued_age_seconds") >= 590
     assert "steh_task_job_duration_seconds_count" in payload
+
+
+class SimulatedWorkerDeath(BaseException):
+    """Not an Exception: like a killed process, it bypasses the worker's error handling."""
+
+
+@pytest.mark.integration
+def test_worker_death_mid_workflow_is_recovered_from_checkpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_active_jobs()
+    architecture_calls = 0
+    real_architecture = ArchitectureAgent.run
+
+    def dies_once(self: ArchitectureAgent, *args: Any, **kwargs: Any) -> Any:
+        nonlocal architecture_calls
+        architecture_calls += 1
+        if architecture_calls == 1:
+            raise SimulatedWorkerDeath
+        return real_architecture(self, *args, **kwargs)
+
+    monkeypatch.setattr(ArchitectureAgent, "run", dies_once)
+
+    with new_session() as db:
+        task = task_service.accept_task(
+            db, TaskCreate(request=f"Crie uma API segura {uuid4()} para clientes.")
+        )
+        task_id = task.task_id
+        job = claim_next_job(db, "worker-that-dies", lease_seconds=60)
+        assert job is not None and job.task_id == task_id
+        job_id = job.job_id
+        with pytest.raises(SimulatedWorkerDeath):
+            process_job(db, job, "worker-that-dies", lease_seconds=60)
+
+    with new_session() as db:
+        stale = db.get(TaskJobRecord, job_id)
+        assert stale is not None and stale.status == JobStatus.RUNNING
+        stale.lease_expires_at = utc_now() - timedelta(seconds=1)
+        db.commit()
+
+        assert reap_expired_jobs(db, max_attempts=2) >= 1
+
+        requeued = db.get(TaskJobRecord, job_id)
+        assert requeued is not None
+        assert requeued.status == JobStatus.QUEUED
+        assert requeued.attempts == 1
+
+    with new_session() as db:
+        job = claim_next_job(db, "worker-that-recovers", lease_seconds=60)
+        assert job is not None and job.job_id == job_id and job.attempts == 2
+        assert process_job(db, job, "worker-that-recovers", lease_seconds=60) == JobStatus.SUCCEEDED
+
+    with new_session() as db:
+        stored = db.get(TaskRecord, task_id)
+        assert stored is not None and stored.status == "HUMAN_REVIEW"
+        runs = [
+            (run.agent_name, run.status)
+            for run in db.execute(
+                select(AgentRunRecord).where(AgentRunRecord.task_id == task_id)
+            ).scalars()
+        ]
+    assert runs.count(("requirements_agent", "SUCCEEDED")) == 1
+    assert sorted(status for name, status in runs if name == "architecture_agent") == [
+        "ABANDONED",
+        "SUCCEEDED",
+    ]
+    assert {"TASK_RECOVERY_SCHEDULED", "TASK_RECOVERED"} <= _event_types(task_id)

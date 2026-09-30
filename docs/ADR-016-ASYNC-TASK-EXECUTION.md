@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for RC3 hardening.
+Accepted for RC3 hardening. The "no automatic retries" rule is amended by ADR-017
+(bounded recovery from LangGraph checkpoints).
 
 ## Context
 
