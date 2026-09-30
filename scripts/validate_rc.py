@@ -9,6 +9,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
+RELEASE_VERSION = (Path(__file__).parents[1] / "VERSION").read_text(encoding="utf-8").strip()
+SCANNER_IMAGE = f"steh-scanner:{RELEASE_VERSION}"
+
 
 class Gate(TypedDict):
     id: str
@@ -213,22 +216,22 @@ GATES: list[Gate] = [
     {
         "id": "RC-12A",
         "name": "Scanner image builds",
-        "command": ["docker", "build", "-f", "scanner.Dockerfile", "-t", "steh-scanner:rc2", "."],
+        "command": ["docker", "build", "-f", "scanner.Dockerfile", "-t", SCANNER_IMAGE, "."],
     },
     {
         "id": "RC-12B",
         "name": "Gitleaks is executable",
-        "command": ["docker", "run", "--rm", "steh-scanner:rc2", "gitleaks", "version"],
+        "command": ["docker", "run", "--rm", SCANNER_IMAGE, "gitleaks", "version"],
     },
     {
         "id": "RC-12C",
         "name": "Trivy is executable",
-        "command": ["docker", "run", "--rm", "steh-scanner:rc2", "trivy", "--version"],
+        "command": ["docker", "run", "--rm", SCANNER_IMAGE, "trivy", "--version"],
     },
     {
         "id": "RC-12D",
         "name": "Semgrep is executable",
-        "command": ["docker", "run", "--rm", "steh-scanner:rc2", "semgrep", "--version"],
+        "command": ["docker", "run", "--rm", SCANNER_IMAGE, "semgrep", "--version"],
     },
 ]
 
@@ -283,7 +286,7 @@ def main() -> int:
 
     evidence = {
         "schema_version": "1.0",
-        "release_candidate": "1.0.0-rc2",
+        "release_candidate": RELEASE_VERSION,
         "status": "PASS" if passed else "FAIL",
         "commit": _git_commit(),
         "run_id": os.getenv("GITHUB_RUN_ID"),

@@ -7,10 +7,10 @@ O STEH é uma plataforma de engenharia de software assistida por IA orientada a 
 ## Baseline atual
 
 ```text
-v1.0.0-rc2
+v1.0.0-rc3
 ```
 
-O código executável na raiz do repositório representa a versão operacional mais recente. O `main` já contém entregas posteriores ao RC2, listadas na seção `[Unreleased]` do `CHANGELOG.md`.
+O código executável na raiz do repositório representa a versão operacional mais recente.
 
 ## Evolução
 
@@ -43,12 +43,13 @@ v1.0.0-rc1 / rc2
 Release candidates: auth, métricas e evidência reproduzível
         |
         v
-Pós-RC2 (main, sem tag)
+v1.0.0-rc3
 SDD + Test Plan, rework no grafo, HITL, Context Engine,
-GitHub Issue/PR (read-only), LLM-as-Judge
+GitHub Issue/PR (read-only), LLM-as-Judge,
+execução assíncrona (fila + worker) e logs correlacionados
         |
         v
-v1.0.0-rc3 -> MVP 1.0
+MVP 1.0
 ```
 
 ## Releases
@@ -63,8 +64,8 @@ v1.0.0-rc3 -> MVP 1.0
 | `v0.5.0-alpha` | Test Agent + Static Validation + Rework Decision | Histórica |
 | `v0.5.1-alpha` | Containerized Scanners + Bounded Rework | Histórica |
 | `v1.0.0-rc1` | MVP Release Candidate hardening and verification | Histórica |
-| `v1.0.0-rc2` | Baseline executável, tipada e validada com evidência reproduzível | **Baseline** |
-| `main` (sem tag) | Entregas pós-RC2, ver `[Unreleased]` no `CHANGELOG.md` | Em desenvolvimento |
+| `v1.0.0-rc2` | Baseline executável, tipada e validada com evidência reproduzível | Histórica |
+| `v1.0.0-rc3` | Workflow completo pós-RC2, execução assíncrona e 25 critérios de aceite | **Baseline** |
 
 As releases não são instaladas sequencialmente. Para executar o estado atual, use diretamente a raiz deste repositório.
 

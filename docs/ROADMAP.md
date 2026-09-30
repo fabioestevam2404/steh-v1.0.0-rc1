@@ -50,7 +50,9 @@
 - commit-bound JSON evidence artifact
 - release workflow for `rc` tags
 
-## Delivered after RC2
+## RC3 — Complete workflow and asynchronous execution
+
+Delivered after RC2 and released in `v1.0.0-rc3`:
 
 - Specification/SDD and Given/When/Then criteria
 - Test Plan before implementation
@@ -60,8 +62,15 @@
 - read-only GitHub Issue Analysis
 - read-only GitHub Pull Request Review
 - auxiliary, versioned and non-authoritative LLM-as-Judge evaluation
+- asynchronous execution with a PostgreSQL job queue and worker (ADR-016)
+- correlated structured logs across API, worker and agents
+- lazily created settings and database engine, injectable readiness
+- acceptance criteria RC-17 to RC-25 with executable gates
 
-## Planned for the next release candidate
+## Candidates for the next milestone
 
-- post-integration security and operational hardening
-- updated acceptance evidence for the complete post-RC2 workflow
+- queue metrics (depth, job latency) and checkpoint-based job recovery
+- versioned and hashed agent prompts in the evidence
+- tests for expired-review blocking, negative judge verdicts and task/job
+  atomicity under database failure
+- promotion decision from `v1.0.0-rc3` to `v1.0.0`
