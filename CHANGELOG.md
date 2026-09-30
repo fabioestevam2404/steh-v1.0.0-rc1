@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
-Changes merged to `main` after `v1.0.0-rc2`. Not yet tagged.
+---
+
+## [1.0.0-rc3] - 2026-09-30
+
+Everything merged after `v1.0.0-rc2` (PRs #4 to #20). See
+`docs/releases/v1.0.0-rc3.md`.
 
 ### Changed (BREAKING)
 - Task execution is asynchronous (ADR-016). `POST /api/v1/tasks`,
@@ -62,9 +67,29 @@ Changes merged to `main` after `v1.0.0-rc2`. Not yet tagged.
 ### Fixed
 - Security E2E workflow aligned with the Specification Agent (PR #5).
 - Shortened the Patch 4E Alembic revision identifier (PR #9).
+- Removed the unused `init_db` helper that created tables outside Alembic
+  (PR #14).
+- Shell scripts keep LF line endings on Windows checkouts (`.gitattributes`);
+  containers built from a Windows working copy no longer fail to start
+  (PR #18).
+
+### Tooling
+- Repository formatted with `ruff format`; new gate RC-14B and ruff pinned to
+  `>=0.16,<0.17` (PR #16).
+- CI no longer triggers on the nonexistent `develop` branch (PR #15).
+- Validation evidence and scanner image are named after `VERSION` instead of a
+  hard-coded release candidate.
 
 ### Documentation
 - `docs/HANDOFF.md` with the verified post-RC2 state (PR #12).
+- `[Unreleased]` changelog for post-RC2 work (PR #13).
+- Git workflow and README aligned with the trunk-based flow (PR #15).
+- Acceptance criteria RC-17 to RC-25 with one executable gate each (PR #19).
+
+### Validation
+- `scripts/validate_rc.py`: 28 gates, including migration roundtrip to `0012`,
+  unit, integration and E2E suites, scanner image and ruff/mypy.
+- Evidence for the release commit is produced by the CI and release workflows.
 
 ---
 

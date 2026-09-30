@@ -2,13 +2,14 @@ import pytest
 
 from app.api.routes.health import health, ready
 from app.db.session import new_session
+from app.version import __version__
 
 
 def test_health_reports_application_version() -> None:
     response = health()
 
     assert response["status"] == "ok"
-    assert response["version"] == "1.0.0-rc2"
+    assert response["version"] == __version__
 
 
 @pytest.mark.integration

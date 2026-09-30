@@ -15,6 +15,7 @@ v0.2.1-alpha
 v0.3.0-alpha
 v1.0.0-rc1
 v1.0.0-rc2
+v1.0.0-rc3
 ```
 
 ## MINOR
@@ -31,8 +32,8 @@ CI verde e evidência de validação vinculada ao commit exato da tag.
 No `pyproject.toml`, o equivalente PEP 440 omite o hífen:
 
 ```text
-Tag/versão pública: v1.0.0-rc2
-Pacote Python:      1.0.0rc2
+Tag/versão pública: v1.0.0-rc3
+Pacote Python:      1.0.0rc3
 ```
 
 ## Baseline

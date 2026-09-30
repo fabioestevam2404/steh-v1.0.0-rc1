@@ -41,16 +41,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ".[dev]"
-      - name: Validate RC2 and generate evidence
+      - name: Validate RC and generate evidence
         run: >-
           python scripts/validate_rc.py
           --allow-database-reset
-          --output artifacts/rc2-validation-evidence.json
+          --output artifacts/rc-validation-evidence.json
       - name: Upload validation evidence
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: rc2-validation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/rc2-validation-evidence.json
+          name: rc-validation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/rc-validation-evidence.json
           if-no-files-found: error
           retention-days: 30
