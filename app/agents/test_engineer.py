@@ -1,9 +1,49 @@
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from app.models.contracts import AgentResult
-from app.models.validation import ValidationResult, ValidationStatus
+from app.models.validation import TestEvidence, ValidationResult, ValidationStatus
 from app.tools.validator import ControlledValidator
+
+MAX_LISTED_MISSING_FILES = 10
+
+
+def workspace_integrity(declared: set[str], present: set[str]) -> TestEvidence:
+    """Fail closed unless every file the implementation declared is in the workspace.
+
+    Without this check an empty workspace validated as PASS: syntax tests were
+    SKIPPED and scanners found nothing because there was nothing to scan.
+    """
+    if not declared:
+        return TestEvidence(
+            name="workspace_integrity",
+            status=ValidationStatus.FAIL,
+            details="Implementation declared no files; nothing was validated.",
+        )
+    missing = sorted(declared - present)
+    if missing:
+        listed = ", ".join(missing[:MAX_LISTED_MISSING_FILES])
+        more = len(missing) - MAX_LISTED_MISSING_FILES
+        suffix = f" (+{more} more)" if more > 0 else ""
+        return TestEvidence(
+            name="workspace_integrity",
+            status=ValidationStatus.FAIL,
+            details=f"Declared files missing from the workspace: {listed}{suffix}.",
+        )
+    return TestEvidence(
+        name="workspace_integrity",
+        status=ValidationStatus.PASS,
+        details=f"All {len(declared)} declared files are present in the workspace.",
+    )
+
+
+def _declared_files(implementation: dict[str, Any]) -> set[str]:
+    paths = [
+        *implementation.get("files_created", []),
+        *implementation.get("files_modified", []),
+    ]
+    return {PurePosixPath(path).as_posix() for path in paths}
 
 
 class TestAgent:
@@ -20,7 +60,13 @@ class TestAgent:
         task_id: str,
         implementation: dict[str, Any],
     ) -> AgentResult:
-        tests = self.validator.syntax_tests(task_id)
+        tests = [
+            workspace_integrity(
+                _declared_files(implementation),
+                self.validator.relative_files(task_id),
+            ),
+            *self.validator.syntax_tests(task_id),
+        ]
         findings = [
             *self.validator.secret_scan(task_id),
             *self.validator.sast_scan(task_id),

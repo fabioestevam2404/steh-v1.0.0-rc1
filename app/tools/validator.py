@@ -26,6 +26,10 @@ class ControlledValidator:
         workspace = self.gateway.workspace_for(task_id)
         return [p for p in workspace.rglob("*") if p.is_file()]
 
+    def relative_files(self, task_id: str) -> set[str]:
+        workspace = self.gateway.workspace_for(task_id)
+        return {path.relative_to(workspace).as_posix() for path in self._files(task_id)}
+
     def syntax_tests(self, task_id: str) -> list[TestEvidence]:
         evidence = []
         for path in self._files(task_id):

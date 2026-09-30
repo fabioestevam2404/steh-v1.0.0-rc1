@@ -10,6 +10,12 @@
   `steh_metrics_database_up`.
 
 ### Fixed
+- **Validation failed open on an empty workspace.** When the implementation
+  produced no files, or when declared files were missing, syntax tests were
+  `SKIPPED`, scanners had nothing to scan and validation reported
+  `test_passed=true`. A `workspace_integrity` test now fails validation unless
+  every file declared in `files_created`/`files_modified` is present, which
+  routes the task to bounded rework instead of `COMPLETED`.
 - `steh_http_requests_total` was never incremented by the application; a
   middleware now counts every request, labeled by route template.
 
