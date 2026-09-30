@@ -40,12 +40,16 @@ logger = logging.getLogger("steh.worker")
 SessionFactory = Callable[[], Session]
 JobHandler = Callable[[Session, TaskJobRecord], object]
 
+# `job.attempts` is 1 on the first run; higher values mean checkpoint recovery (ADR-017).
 HANDLERS: dict[str, JobHandler] = {
-    JobKind.EXECUTE_TASK: lambda db, job: run_task_workflow(db, job.task_id),
-    JobKind.ANALYZE_GITHUB_ISSUE: lambda db, job: run_github_issue_analysis(db, job.task_id),
+    JobKind.EXECUTE_TASK: lambda db, job: run_task_workflow(db, job.task_id, job.attempts),
+    JobKind.ANALYZE_GITHUB_ISSUE: lambda db, job: run_github_issue_analysis(
+        db, job.task_id, job.attempts
+    ),
+    # A single agent without a graph: recovery simply runs it again.
     JobKind.REVIEW_PULL_REQUEST: lambda db, job: run_pull_request_review(db, job.task_id),
     JobKind.RESUME_HUMAN_REVIEW: lambda db, job: run_human_review_resume(
-        db, job.task_id, job.payload
+        db, job.task_id, job.payload, job.attempts
     ),
 }
 
@@ -187,7 +191,7 @@ def run_once(
     lease = lease_seconds or settings.worker_lease_seconds
 
     with session_factory() as db:
-        reap_expired_jobs(db)
+        reap_expired_jobs(db, settings.worker_max_attempts)
         job = claim_next_job(db, worker_id, lease)
         if job is None:
             return False

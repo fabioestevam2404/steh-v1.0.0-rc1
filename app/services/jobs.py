@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.db.models import TaskJobRecord, TaskRecord
+from app.db.models import AgentRunRecord, TaskJobRecord, TaskRecord
 from app.models.contracts import TaskStatus, utc_now
 from app.services.audit import record_event
 
@@ -148,8 +148,28 @@ def finish_job(
     db.commit()
 
 
-def reap_expired_jobs(db: Session) -> int:
-    """Fail jobs whose worker stopped renewing the lease (ADR-016: no retries)."""
+AGENT_RUN_ABANDONED = "ABANDONED"
+
+
+def _abandon_agent_runs(db: Session, task_id: UUID, now: datetime) -> int:
+    """Close agent runs a dead worker left in STARTED so the audit trail stays truthful."""
+    result = db.execute(
+        update(AgentRunRecord)
+        .where(
+            AgentRunRecord.task_id == task_id,
+            AgentRunRecord.status == "STARTED",
+        )
+        .values(status=AGENT_RUN_ABANDONED, completed_at=now)
+    )
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def reap_expired_jobs(db: Session, max_attempts: int = 1) -> int:
+    """Handle jobs whose worker stopped renewing the lease.
+
+    Jobs below `max_attempts` are requeued for checkpoint recovery (ADR-017);
+    the rest fail closed with TASK_ABANDONED (ADR-016).
+    """
     now = utc_now()
     jobs = list(
         db.execute(
@@ -166,29 +186,37 @@ def reap_expired_jobs(db: Session) -> int:
         db.rollback()
         return 0
 
-    abandoned: list[tuple[TaskJobRecord, TaskRecord]] = []
+    outcomes: list[tuple[TaskJobRecord, TaskRecord, bool, int]] = []
     for job in jobs:
-        job.status = JobStatus.FAILED
-        job.finished_at = now
+        recoverable = job.attempts < max_attempts
         job.lease_expires_at = None
         job.last_error = LEASE_EXPIRED
         task = db.get(TaskRecord, job.task_id)
+        abandoned_runs = _abandon_agent_runs(db, job.task_id, now)
+        if recoverable:
+            job.status = JobStatus.QUEUED
+        else:
+            job.status = JobStatus.FAILED
+            job.finished_at = now
+            if task is not None:
+                task.status = TaskStatus.FAILED
+                task.updated_at = now
         if task is not None:
-            task.status = TaskStatus.FAILED
-            task.updated_at = now
-            abandoned.append((job, task))
+            outcomes.append((job, task, recoverable, abandoned_runs))
     db.commit()
 
-    for job, task in abandoned:
-        logger.warning(
-            "task_abandoned",
+    for job, task, recoverable, abandoned_runs in outcomes:
+        event = "TASK_RECOVERY_SCHEDULED" if recoverable else "TASK_ABANDONED"
+        log = logger.info if recoverable else logger.warning
+        log(
+            event.lower(),
             extra={
-                "event": "task_abandoned",
+                "event": event.lower(),
                 "task_id": str(task.task_id),
                 "trace_id": str(task.trace_id),
                 "job_id": str(job.job_id),
                 "node": job.kind,
-                "status": JobStatus.FAILED,
+                "status": job.status,
                 "error_type": LEASE_EXPIRED,
             },
         )
@@ -196,13 +224,15 @@ def reap_expired_jobs(db: Session) -> int:
             db,
             task.task_id,
             task.trace_id,
-            "TASK_ABANDONED",
+            event,
             "worker",
             {
                 "job_id": str(job.job_id),
                 "kind": job.kind,
                 "locked_by": job.locked_by,
                 "attempts": job.attempts,
+                "max_attempts": max_attempts,
+                "abandoned_agent_runs": abandoned_runs,
             },
         )
 

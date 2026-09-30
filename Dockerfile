@@ -10,7 +10,7 @@ COPY policies ./policies
 COPY migrations ./migrations
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN pip install --upgrade pip && pip install ".[dev]"     && chmod +x /app/docker-entrypoint.sh     && useradd --create-home --uid 10001 steh     && chown -R steh:steh /app
+RUN pip install --upgrade pip && pip install ".[dev]"     && chmod +x /app/docker-entrypoint.sh     && useradd --create-home --uid 10001 steh     && mkdir -p /tmp/steh-workspaces     && chown -R steh:steh /app /tmp/steh-workspaces
 
 USER steh
 

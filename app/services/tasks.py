@@ -140,8 +140,46 @@ def accept_task(db: Session, payload: TaskCreate) -> TaskRecord:
     return record
 
 
-def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
-    """Run the engineering workflow for a task whose context is already persisted."""
+def invoke_workflow(
+    graph: Any,
+    config: dict[str, Any],
+    start: Any,
+    *,
+    recover: bool,
+    resume_interrupt: bool = False,
+) -> dict[str, Any]:
+    """Run a workflow thread, or recover it from its last checkpoint (ADR-017).
+
+    Without recovery the graph runs from `start`. With recovery the stored checkpoint
+    decides: no checkpoint starts from `start`; pending nodes continue with
+    `invoke(None)` so only the interrupted node runs again; a finished thread reuses
+    its state. A pending human-review interrupt reuses the state too, unless `start`
+    is the resume command that never got applied (`resume_interrupt`).
+    Checkpoints are written synchronously so recovery resumes after the last
+    completed node.
+    """
+    if recover:
+        snapshot = graph.get_state(config)
+        if snapshot.values:
+            if snapshot.interrupts:
+                if not resume_interrupt:
+                    return dict(snapshot.values)
+            elif snapshot.next:
+                return cast(dict[str, Any], graph.invoke(None, config, durability="sync"))
+            else:
+                return dict(snapshot.values)
+    return cast(dict[str, Any], graph.invoke(start, config, durability="sync"))
+
+
+def _thread_config(task_id: UUID) -> dict[str, Any]:
+    return {"configurable": {"thread_id": str(task_id)}}
+
+
+def run_task_workflow(db: Session, task_id: UUID, attempt: int = 1) -> TaskRecord:
+    """Run the engineering workflow for a task whose context is already persisted.
+
+    From the second attempt on, the workflow is recovered from its checkpoint.
+    """
     record = db.get(TaskRecord, task_id)
     if record is None:
         raise ValueError("Task not found")
@@ -154,13 +192,14 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
     record.status = TaskStatus.ANALYZING
     db.commit()
 
+    recover = attempt > 1
     record_event(
         db,
         task_id,
         trace_id,
-        "TASK_STARTED",
+        "TASK_RECOVERED" if recover else "TASK_STARTED",
         "orchestrator",
-        {"request_length": len(record.request)},
+        {"attempt": attempt} if recover else {"request_length": len(record.request)},
     )
 
     started = time.perf_counter()
@@ -176,7 +215,9 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
     try:
         lifecycle = AgentLifecycle(db, task_id, trace_id)
         graph = build_graph(lifecycle=lifecycle)
-        result = graph.invoke(
+        result = invoke_workflow(
+            graph,
+            _thread_config(task_id),
             {
                 "task_id": str(task_id),
                 "trace_id": str(trace_id),
@@ -185,11 +226,7 @@ def run_task_workflow(db: Session, task_id: UUID) -> TaskRecord:
                 "context_bundle": context_bundle.model_dump(mode="json"),
                 "evidence": [],
             },
-            config={
-                "configurable": {
-                    "thread_id": str(task_id),
-                }
-            },
+            recover=recover,
         )
 
         _apply_workflow_result(record, result)
@@ -355,6 +392,7 @@ def run_human_review_resume(
     db: Session,
     task_id: UUID,
     resume_payload: dict[str, Any],
+    attempt: int = 1,
 ) -> TaskRecord:
     """Resume the interrupted checkpoint with a previously claimed decision."""
     record = db.get(TaskRecord, task_id)
@@ -367,13 +405,23 @@ def run_human_review_resume(
 
     lifecycle = AgentLifecycle(db, task_id, record.trace_id)
     graph = build_graph(lifecycle=lifecycle)
+    recover = attempt > 1
+    if recover:
+        record_event(
+            db,
+            task_id,
+            record.trace_id,
+            "TASK_RECOVERED",
+            "orchestrator",
+            {"attempt": attempt, "reviewer": reviewer},
+        )
     try:
-        result = cast(
-            dict[str, Any],
-            cast(Any, graph).invoke(
-                Command(resume=resume.model_dump(mode="json")),
-                config={"configurable": {"thread_id": str(task_id)}},
-            ),
+        result = invoke_workflow(
+            graph,
+            _thread_config(task_id),
+            Command(resume=resume.model_dump(mode="json")),
+            recover=recover,
+            resume_interrupt=True,
         )
     except Exception:
         record.status = "FAILED"

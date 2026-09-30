@@ -219,11 +219,15 @@ def accept_github_issue(
     return record
 
 
-def run_github_issue_analysis(db: Session, task_id: UUID) -> TaskRecord:
+def run_github_issue_analysis(db: Session, task_id: UUID, attempt: int = 1) -> TaskRecord:
     settings = get_settings()
     record = db.get(TaskRecord, task_id)
     if record is None or record.source_issue is None:
         raise ValueError("GitHub issue task not found")
+
+    if attempt > 1 and record.issue_analysis is not None and record.context_bundle is not None:
+        # The analysis finished before the worker died: recover the workflow only.
+        return run_task_workflow(db, task_id, attempt)
 
     issue = GitHubIssueSnapshot.model_validate(record.source_issue)
     trace_id = record.trace_id
@@ -263,6 +267,6 @@ def run_github_issue_analysis(db: Session, task_id: UUID) -> TaskRecord:
             _context_sources(issue, analysis),
         )
         persist_context_bundle(db, record, context_bundle)
-        return run_task_workflow(db, task_id)
+        return run_task_workflow(db, task_id, attempt)
     except Exception as exc:
         _fail_task(db, record, exc)
