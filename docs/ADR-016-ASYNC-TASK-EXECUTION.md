@@ -94,4 +94,6 @@ migrations concurrently.
 - A worker must run for tasks to progress. `docker compose up` starts one.
 - E2E tests drain the queue in-process with `app.worker.run_once`, which keeps them deterministic
   and independent of timing.
-- Queue depth and job latency are not yet exported as metrics.
+- Queue depth, oldest queued age, expired leases and job durations are exported by
+  `/metrics`, computed from PostgreSQL at scrape time so they stay correct across API
+  and worker replicas (added after RC3).

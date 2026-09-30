@@ -47,11 +47,8 @@ python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evide
 Todas as dívidas levantadas na conferência de 2026-09-29 foram resolvidas (PRs #13 a #20), exceto:
 
 1. **Prompts só no código.** Cada agente tem o prompt inline, sem versão nem hash na evidência (ao contrário da rubrica do Judge). Mudar um prompt exige mudar código.
-2. **Lacunas de teste nos critérios de aceite** (a redação dos critérios foi limitada ao que os testes provam):
-   - RC-19: bloqueio da tarefa após uma revisão humana expirada;
-   - RC-23: veredito negativo do Judge sem alterar o status da tarefa;
-   - RC-24: atomicidade tarefa + job sob falha do banco.
-3. **Operação da fila:** sem métricas de profundidade e latência; um worker que morre deixa a tarefa `FAILED` (`TASK_ABANDONED`), sem retomada a partir do checkpoint.
+2. ~~**Lacunas de teste nos critérios de aceite.**~~ Cobertas depois do RC3: revisão expirada bloqueia antes da implementação (RC-19), veredito `FAIL` do Judge mantém a tarefa `COMPLETED` (RC-23) e tarefa/reivindicação nunca ficam gravadas sem o job quando a gravação do job falha (RC-24; o teste falha se a atomicidade for removida).
+3. **Operação da fila:** ~~sem métricas~~ o `/metrics` expõe tarefas por status, jobs por tipo/status, idade do job mais antigo na fila, leases vencidos e duração dos jobs (lidos do Postgres). Continua em aberto: um worker que morre deixa a tarefa `FAILED` (`TASK_ABANDONED`), sem retomada a partir do checkpoint.
 
 ## 5. Próximo marco
 

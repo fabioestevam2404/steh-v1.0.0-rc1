@@ -2,14 +2,20 @@ import io
 import json
 import logging
 from datetime import timedelta
+from typing import Any
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 
 from app.core.logging import build_handler
 from app.db.models import AuditEventRecord, TaskJobRecord, TaskRecord
 from app.db.session import new_session
-from app.models.contracts import TaskStatus, ids, utc_now
+from app.models.contracts import TaskCreate, TaskStatus, ids, utc_now
+from app.models.human_review import HumanReviewArtifact, HumanReviewDecision, HumanReviewStatus
+from app.services import jobs as jobs_service
+from app.services import tasks as task_service
 from app.services.jobs import (
     LEASE_EXPIRED,
     JobKind,
@@ -19,6 +25,7 @@ from app.services.jobs import (
     reap_expired_jobs,
     renew_lease,
 )
+from app.services.metrics import render_state_metrics
 from app.worker import process_job
 
 
@@ -184,3 +191,93 @@ def test_worker_logs_carry_task_trace_and_job_ids() -> None:
     assert failed["job_id"] == str(queued_id)
     assert failed["error_type"] == "ValueError"
     assert failed["duration_ms"] >= 0
+
+
+def _job_that_fails_to_insert(real_new_job: Any) -> Any:
+    def broken(*args: Any, **kwargs: Any) -> TaskJobRecord:
+        job: TaskJobRecord = real_new_job(*args, **kwargs)
+        job.kind = "X" * 40  # exceeds VARCHAR(32): PostgreSQL rejects the insert
+        return job
+
+    return broken
+
+
+@pytest.mark.integration
+def test_task_is_not_persisted_when_its_job_cannot_be_queued(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = f"Atomicity check {uuid4()} for task and job creation."
+    monkeypatch.setattr(task_service, "new_job", _job_that_fails_to_insert(jobs_service.new_job))
+
+    with new_session() as db, pytest.raises(DBAPIError):
+        task_service.accept_task(db, TaskCreate(request=request))
+
+    with new_session() as db:
+        stored = db.execute(select(TaskRecord).where(TaskRecord.request == request)).first()
+    assert stored is None
+
+
+@pytest.mark.integration
+def test_review_claim_is_rolled_back_when_resume_cannot_be_queued(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = _new_task()
+    now = utc_now()
+    with new_session() as db:
+        record = db.get(TaskRecord, task.task_id)
+        assert record is not None
+        record.status = TaskStatus.HUMAN_REVIEW
+        record.human_review = HumanReviewArtifact(
+            status=HumanReviewStatus.PENDING,
+            requested_at=now,
+            expires_at=now + timedelta(minutes=30),
+            policy_result_count=0,
+        ).model_dump(mode="json")
+        db.commit()
+
+    monkeypatch.setattr(task_service, "new_job", _job_that_fails_to_insert(jobs_service.new_job))
+    decision = HumanReviewDecision(
+        decision="APPROVE", justification="Approve to exercise the atomic claim."
+    )
+    with new_session() as db, pytest.raises(DBAPIError):
+        task_service.claim_human_review(db, task.task_id, "reviewer", decision)
+
+    with new_session() as db:
+        stored = db.get(TaskRecord, task.task_id)
+        assert stored is not None
+        assert stored.status == TaskStatus.HUMAN_REVIEW
+        jobs = db.execute(select(TaskJobRecord).where(TaskJobRecord.task_id == task.task_id)).all()
+    assert jobs == []
+    assert "HUMAN_REVIEW_DECIDED" not in _event_types(task.task_id)
+
+
+def _metric(payload: str, name: str) -> float:
+    line = next(line for line in payload.splitlines() if line.startswith(f"{name} "))
+    return float(line.rsplit(" ", 1)[1])
+
+
+@pytest.mark.integration
+def test_queue_metrics_reflect_database_state() -> None:
+    _drain_queued()
+    queued_task, expired_task = _new_task(), _new_task()
+    with new_session() as db:
+        enqueue_job(db, db.merge(queued_task), JobKind.EXECUTE_TASK)
+        enqueue_job(db, db.merge(expired_task), JobKind.REVIEW_PULL_REQUEST)
+        # Claim the oldest queued job (the EXECUTE_TASK one) and let its lease expire.
+        running = claim_next_job(db, "worker-metrics", lease_seconds=60)
+        assert running is not None and running.task_id == queued_task.task_id
+        running.lease_expires_at = utc_now() - timedelta(seconds=5)
+        queued = db.execute(
+            select(TaskJobRecord).where(TaskJobRecord.task_id == expired_task.task_id)
+        ).scalar_one()
+        queued.created_at = utc_now() - timedelta(minutes=10)
+        db.commit()
+
+        payload = render_state_metrics(db)
+
+    assert 'steh_tasks{status="QUEUED"}' in payload
+    assert 'steh_task_jobs{kind="REVIEW_PULL_REQUEST",status="QUEUED"}' in payload
+    assert 'steh_task_jobs{kind="EXECUTE_TASK",status="RUNNING"}' in payload
+    assert _metric(payload, "steh_task_jobs_expired_leases") >= 1
+    assert _metric(payload, "steh_task_jobs_oldest_queued_age_seconds") >= 590
+    assert "steh_task_job_duration_seconds_count" in payload
