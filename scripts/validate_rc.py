@@ -82,7 +82,14 @@ GATES: list[Gate] = [
     {
         "id": "RC-11",
         "name": "Operational metrics pass",
-        "command": [sys.executable, "-m", "pytest", "tests/unit/test_metrics.py", "-q"],
+        "command": [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit/test_metrics.py",
+            "tests/integration/test_task_jobs.py::test_queue_metrics_reflect_database_state",
+            "-q",
+        ],
     },
     {
         "id": "RC-13",

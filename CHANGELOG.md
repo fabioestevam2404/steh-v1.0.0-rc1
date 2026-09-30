@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+- Queue and task metrics on `/metrics`, read from PostgreSQL at scrape time:
+  `steh_tasks{status}`, `steh_task_jobs{kind,status}`,
+  `steh_task_jobs_oldest_queued_age_seconds`, `steh_task_jobs_expired_leases`,
+  `steh_task_job_duration_seconds_sum/_count{kind,status}` and
+  `steh_metrics_database_up`.
+
+### Fixed
+- `steh_http_requests_total` was never incremented by the application; a
+  middleware now counts every request, labeled by route template.
+
+### Removed
+- `steh_workflows_total`, which was never incremented and could not be
+  correct across processes; use `steh_tasks{status}` instead.
+
 ### Tests
 - RC-19: an expired human review blocks the task before test planning and
   implementation.

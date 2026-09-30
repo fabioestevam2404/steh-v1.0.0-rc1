@@ -33,7 +33,7 @@ The validator performs a destructive downgrade to Alembic `base`. It requires
 | RC-08 | Authentication rejects missing or invalid tokens | authentication unit tests | RC-08/09 |
 | RC-09 | Authorization rejects insufficient roles | authorization unit tests | RC-08/09 |
 | RC-10 | Health and readiness endpoints operate | API tests | RC-10 |
-| RC-11 | Metrics expose operational counters | metrics tests | RC-11 |
+| RC-11 | Metrics expose HTTP counters labeled by route template, and task and queue state read from the database; `/metrics` stays available during a database outage | metrics unit tests and queue-metrics integration test | RC-11 |
 | RC-12 | Semgrep, Gitleaks and Trivy image builds and runs | Docker build and smoke commands | RC-12A–RC-12D |
 | RC-13 | External scanner isolation is verified | scanner and process-runner tests | RC-13 |
 | RC-14 | Ruff lint and format pass | `ruff check .` and `ruff format --check .` | RC-14, RC-14B |

@@ -69,7 +69,7 @@ Delivered after RC2 and released in `v1.0.0-rc3`:
 
 ## Candidates for the next milestone
 
-- queue metrics (depth, job latency) and checkpoint-based job recovery
+- ~~queue metrics (depth, job latency)~~ (done after RC3) and checkpoint-based job recovery
 - versioned and hashed agent prompts in the evidence
 - tests for expired-review blocking, negative judge verdicts and task/job
   atomicity under database failure

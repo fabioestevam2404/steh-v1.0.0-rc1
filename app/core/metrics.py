@@ -4,7 +4,6 @@ from threading import Lock
 _lock = Lock()
 
 _requests: Counter[tuple[str, str, str]] = Counter()
-_workflows: Counter[str] = Counter()
 
 
 def inc_request(
@@ -12,6 +11,7 @@ def inc_request(
     path: str,
     status: int,
 ) -> None:
+    """Count an HTTP request. `path` must be a route template to bound cardinality."""
     with _lock:
         _requests[
             (
@@ -22,12 +22,8 @@ def inc_request(
         ] += 1
 
 
-def inc_workflow(status: str) -> None:
-    with _lock:
-        _workflows[status] += 1
-
-
 def render() -> str:
+    """Process-local counters of the API process (see app.services.metrics for shared state)."""
     lines = [
         "# HELP steh_http_requests_total HTTP requests.",
         "# TYPE steh_http_requests_total counter",
@@ -47,13 +43,5 @@ def render() -> str:
                 f"{value}"
             )
             lines.append(metric)
-
-        lines += [
-            ("# HELP steh_workflows_total Workflow terminal states."),
-            "# TYPE steh_workflows_total counter",
-        ]
-
-        for status, value in sorted(_workflows.items()):
-            lines.append(f'steh_workflows_total{{status="{status}"}} {value}')
 
     return "\n".join(lines) + "\n"

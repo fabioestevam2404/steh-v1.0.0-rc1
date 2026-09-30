@@ -25,6 +25,7 @@ from app.services.jobs import (
     reap_expired_jobs,
     renew_lease,
 )
+from app.services.metrics import render_state_metrics
 from app.worker import process_job
 
 
@@ -248,3 +249,35 @@ def test_review_claim_is_rolled_back_when_resume_cannot_be_queued(
         jobs = db.execute(select(TaskJobRecord).where(TaskJobRecord.task_id == task.task_id)).all()
     assert jobs == []
     assert "HUMAN_REVIEW_DECIDED" not in _event_types(task.task_id)
+
+
+def _metric(payload: str, name: str) -> float:
+    line = next(line for line in payload.splitlines() if line.startswith(f"{name} "))
+    return float(line.rsplit(" ", 1)[1])
+
+
+@pytest.mark.integration
+def test_queue_metrics_reflect_database_state() -> None:
+    _drain_queued()
+    queued_task, expired_task = _new_task(), _new_task()
+    with new_session() as db:
+        enqueue_job(db, db.merge(queued_task), JobKind.EXECUTE_TASK)
+        enqueue_job(db, db.merge(expired_task), JobKind.REVIEW_PULL_REQUEST)
+        # Claim the oldest queued job (the EXECUTE_TASK one) and let its lease expire.
+        running = claim_next_job(db, "worker-metrics", lease_seconds=60)
+        assert running is not None and running.task_id == queued_task.task_id
+        running.lease_expires_at = utc_now() - timedelta(seconds=5)
+        queued = db.execute(
+            select(TaskJobRecord).where(TaskJobRecord.task_id == expired_task.task_id)
+        ).scalar_one()
+        queued.created_at = utc_now() - timedelta(minutes=10)
+        db.commit()
+
+        payload = render_state_metrics(db)
+
+    assert 'steh_tasks{status="QUEUED"}' in payload
+    assert 'steh_task_jobs{kind="REVIEW_PULL_REQUEST",status="QUEUED"}' in payload
+    assert 'steh_task_jobs{kind="EXECUTE_TASK",status="RUNNING"}' in payload
+    assert _metric(payload, "steh_task_jobs_expired_leases") >= 1
+    assert _metric(payload, "steh_task_jobs_oldest_queued_age_seconds") >= 590
+    assert "steh_task_job_duration_seconds_count" in payload
