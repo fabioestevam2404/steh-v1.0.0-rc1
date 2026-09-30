@@ -6,10 +6,15 @@ from langgraph.types import Command
 
 from app.agents.llm_judge import LLMJudgeAgent
 from app.core.config import get_settings
+from app.models.judge import JudgeCriterionProposal, JudgeProposal, JudgeRubric
 from app.orchestration.graph import build_graph
 
 
 def _run_approved_workflow(thread_id: str) -> dict[str, object]:
+    return _run_reviewed_workflow(thread_id, "APPROVED")
+
+
+def _run_reviewed_workflow(thread_id: str, review_status: str) -> dict[str, object]:
     graph = build_graph(checkpointer=MemorySaver())
     config = {"configurable": {"thread_id": thread_id}}
     graph.invoke(
@@ -25,7 +30,7 @@ def _run_approved_workflow(thread_id: str) -> dict[str, object]:
     return graph.invoke(
         Command(
             resume={
-                "status": "APPROVED",
+                "status": review_status,
                 "reviewer": "security-reviewer",
                 "justification": "Risk accepted with compensating controls.",
                 "decided_at": datetime.now(UTC).isoformat(),
@@ -183,4 +188,49 @@ def test_unavailable_judge_does_not_change_completed_status(
     assert isinstance(judge, dict)
     assert judge["status"] == "UNAVAILABLE"
     assert judge["error_type"] == "RuntimeError"
+    assert judge["authoritative"] is False
+
+
+def test_expired_review_blocks_before_implementation() -> None:
+    result = _run_reviewed_workflow("review-expired", "EXPIRED")
+
+    assert result["status"] == "BLOCKED"
+    human_review = result["human_review"]
+    assert isinstance(human_review, dict)
+    assert human_review["status"] == "EXPIRED"
+    assert not result.get("test_plan")
+    assert not result.get("implementation")
+    assert not result.get("validation")
+    assert not result.get("judge_evaluation")
+
+
+def test_failing_judge_verdict_does_not_change_completed_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def failing_proposal(
+        self: LLMJudgeAgent, rubric: JudgeRubric, artifacts: object
+    ) -> JudgeProposal:
+        return JudgeProposal(
+            criteria=[
+                JudgeCriterionProposal(
+                    criterion_id=criterion.id,
+                    score=0,
+                    rationale="Deliberately failing score for the acceptance test.",
+                    evidence_refs=[criterion.artifact],
+                )
+                for criterion in rubric.criteria
+            ],
+            summary="Every criterion fails.",
+        )
+
+    # Only the score proposal is replaced; the application still compiles the verdict.
+    monkeypatch.setattr(LLMJudgeAgent, "_run_stub", failing_proposal)
+
+    result = _run_approved_workflow("judge-failing-verdict")
+
+    assert result["status"] == "COMPLETED"
+    judge = result["judge_evaluation"]
+    assert isinstance(judge, dict)
+    assert judge["status"] == "COMPLETED"
+    assert judge["verdict"] == "FAIL"
     assert judge["authoritative"] is False

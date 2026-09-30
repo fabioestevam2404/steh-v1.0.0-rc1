@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Tests
+- RC-19: an expired human review blocks the task before test planning and
+  implementation.
+- RC-23: a `FAIL` judge verdict leaves an approved task `COMPLETED` and
+  non-authoritative.
+- RC-24: a task or human-review claim is never persisted when its job cannot
+  be inserted (task/job atomicity under database failure).
+
 ---
 
 ## [1.0.0-rc3] - 2026-09-30
