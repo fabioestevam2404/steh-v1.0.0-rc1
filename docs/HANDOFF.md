@@ -1,21 +1,22 @@
 # STEH — Handoff
 
-_Estado em 2026-09-30, preparado no PR de release `v1.0.0-rc3`._
+_Estado em 2026-10-01, preparado no PR de release `v1.0.0-rc4`._
 
 ## 1. Onde está o projeto
 
 - **Repositório canônico:** https://github.com/fabioestevam2404/steh-v1.0.0-rc1 (público). Só existe o branch `main`; o trabalho segue `docs/GIT_WORKFLOW.md` (branch curto → PR com CI verde → merge commit → apagar branch).
-- **Versão:** `1.0.0-rc3` (`VERSION`, `app/version.py`, `pyproject.toml`). A tag `v1.0.0-rc3` deve ser criada no commit de merge do PR de release (ver seção 5).
-- **O que o RC3 entrega:** o workflow completo pós-RC2 (ADR-009 a ADR-015) e o hardening operacional: execução assíncrona com fila no Postgres e worker (ADR-016), logs correlacionados e configuração/banco criados sob demanda. Detalhes em `docs/releases/v1.0.0-rc3.md` e no `CHANGELOG.md`.
-- **Mudança de contrato:** os endpoints que executam agentes respondem `202` e o cliente acompanha por `GET /api/v1/tasks/{task_id}`. Sem worker rodando, as tarefas ficam em `QUEUED`.
+- **Versão:** `1.0.0-rc4` (`VERSION`, `app/version.py`, `pyproject.toml`). A tag `v1.0.0-rc4` deve ser criada no commit de merge do PR de release (ver seção 5).
+- **Releases anteriores:** `v1.0.0-rc3` (2026-09-30, workflow completo e execução assíncrona) e `v1.0.0-rc2`. Notas em `docs/releases/`.
+- **O que o RC4 entrega:** validação que falha fechada com workspace vazio, retomada de jobs por checkpoint (ADR-017), prompts versionados com hash na evidência (ADR-018), métricas da fila e os testes que faltavam nos critérios RC-19, RC-23 e RC-24. Detalhes em `docs/releases/v1.0.0-rc4.md`.
+- **Contrato da API:** os endpoints que executam agentes respondem `202` e o cliente acompanha por `GET /api/v1/tasks/{task_id}` (desde o RC3). Sem worker rodando, as tarefas ficam em `QUEUED`.
 
 A pasta local `C:\Projetos\Pipelines\steh\` é um **snapshot antigo da Alpha 0.1**, sem histórico em comum com este repositório. Serve só como arquivo e não deve receber desenvolvimento.
 
 ## 2. Estado verificado
 
-- **Validação local em 2026-09-29/30** (`scripts/validate_rc.py`, Postgres 17 isolado, Windows, Python 3.12): **28/28 gates PASS**, incluindo a ida e volta das migrações até a `0012`.
-- **Docker Compose** (`postgres` → `migrate` → `api` + `worker`): fluxo `202 QUEUED → HUMAN_REVIEW`, decisão `202 RESUMING → COMPLETED`, decisão duplicada `409`, `/ready` `503` com o Postgres parado, worker encerra com código 0 no SIGTERM.
-- **CI:** o workflow `STEH RC Validation` roda os 28 gates em cada PR e em cada push no `main`; o `STEH Release Validation` roda em tags `v*-rc*`.
+- **Validação local** (`scripts/validate_rc.py`, Postgres 17 isolado, Windows, Python 3.12): **30/30 gates PASS** para os 26 critérios de `docs/MVP-1.0-RC-ACCEPTANCE.md`.
+- **Docker Compose** (`postgres` → `migrate` → `api` + `worker`, volume `steh_workspaces`): fluxo `202 QUEUED → HUMAN_REVIEW → 202 RESUMING → COMPLETED`, decisão duplicada `409`, `/ready` `503` com o Postgres parado, worker encerra com código 0 no SIGTERM, recibos de prompt no `/audit`, `/metrics` com dados de fila e de requisições.
+- **CI:** o workflow `STEH RC Validation` roda os 30 gates em cada PR e em cada push no `main`; o `STEH Release Validation` roda em tags `v*-rc*` e guarda a evidência por 90 dias.
 
 ## 3. Como rodar localmente
 
@@ -36,37 +37,42 @@ export LLM_MODE=stub AUTH_ENABLED=false POLICY_FILE=policies/quality-gates.yaml
 python scripts/validate_rc.py --allow-database-reset --output artifacts/rc-evidence.json
 ```
 
+**Mudar um prompt de agente:** editar `prompts/<id>.md`, subir a `version` e rodar `python -m app.services.prompts --write-lock` no mesmo PR (o gate RC-26B falha caso contrário).
+
 **Armadilhas no Windows:**
 
 - Com o Postgres publicado só em `127.0.0.1`, **use `127.0.0.1` nas URLs, não `localhost`**: `localhost` resolve primeiro para `::1` e o `psycopg` fica pendurado sem timeout.
 - O `.gitattributes` força LF em `*.sh`. Se o container falhar com `exec /app/docker-entrypoint.sh: no such file or directory`, o arquivo está com CRLF: apague a cópia local e restaure-a do índice: `rm docker-entrypoint.sh && git checkout -- docker-entrypoint.sh`.
+- O terminal padrão é Windows PowerShell 5.1: um comando por linha (sem `&&`) e sempre a partir de `C:\Projetos\Pipelines\steh-v1.0.0-rc1`.
 - Enviar JSON com acentos pelo `curl` do Git Bash pode gerar `400`; use um cliente Python (httpx) para testes manuais.
 
-## 4. Pendências e dívidas em aberto
+## 4. Limitações conhecidas
 
-Todas as dívidas levantadas na conferência de 2026-09-29 foram resolvidas (PRs #13 a #20), exceto:
+Nenhuma dívida técnica levantada até aqui está em aberto. Limitações aceitas e documentadas:
 
-1. ~~**Prompts só no código.**~~ Resolvido (ADR-018): instruções em `prompts/*.md` versionadas, hash fixado em `prompts/prompts.lock.json` e recibo do prompt na evidência de cada execução de agente.
-2. ~~**Lacunas de teste nos critérios de aceite.**~~ Cobertas depois do RC3: revisão expirada bloqueia antes da implementação (RC-19), veredito `FAIL` do Judge mantém a tarefa `COMPLETED` (RC-23) e tarefa/reivindicação nunca ficam gravadas sem o job quando a gravação do job falha (RC-24; o teste falha se a atomicidade for removida).
-3. ~~**Validação aprovava workspace vazio.**~~ Corrigido: o teste `workspace_integrity` falha se a implementação não declarou arquivos ou se algum arquivo declarado não está no workspace.
-4. **Operação da fila:** ~~sem métricas~~ o `/metrics` expõe tarefas por status, jobs por tipo/status, idade do job mais antigo na fila, leases vencidos e duração dos jobs (lidos do Postgres). Retomada implementada (ADR-017): jobs com lease vencido voltam à fila até `WORKER_MAX_ATTEMPTS` e continuam do último checkpoint. Limitação conhecida: se o worker morrer enquanto grava os eventos pós-workflow, alguns `POLICY_DECISION`/`REWORK_DECISION` podem ser duplicados.
+1. Se o worker morrer enquanto grava os eventos de auditoria do fim do workflow, a retomada pode registrar alguns `POLICY_DECISION`/`REWORK_DECISION` em dobro; status e artefatos não são afetados (ADR-017).
+2. Entre hosts diferentes o volume de workspace não é compartilhado; um job retomado em outro host falha a `workspace_integrity` e o rework regenera os arquivos (não há aprovação falsa).
+3. As métricas da fila são calculadas por consulta ao Postgres a cada coleta do `/metrics`; com volumes muito grandes de jobs, pode ser preciso limitar a janela.
 
 ## 5. Próximo marco
 
-1. **Tag do RC3:** depois do merge do PR de release com CI verde, no commit de merge:
+1. **Tag do RC4:** depois do merge do PR de release com CI verde, no commit de merge (confirmar o merge pela API antes de apagar o branch):
 
    ```bash
-   git switch main && git pull --ff-only
-   git tag -a v1.0.0-rc3 -m "STEH v1.0.0-rc3"
-   git push origin v1.0.0-rc3
+   git switch main
+   git pull --ff-only
+   git tag -a v1.0.0-rc4 -m "STEH v1.0.0-rc4"
+   git push origin v1.0.0-rc4
    ```
 
-   Conferir que o `STEH Release Validation` terminou verde e guardou o artefato `release-validation-evidence` (critério RC-16).
-2. **Depois do RC3:** escolher entre fechar as pendências da seção 4 ou decidir a promoção a `v1.0.0`, que exige evidência do commit exato para os 25 critérios (`docs/MVP-1.0-RC-ACCEPTANCE.md`).
+   Conferir que o `STEH Release Validation` terminou verde e guardou o artefato `release-validation-evidence` (critério RC-16). Opcional: GitHub Release como pre-release com o texto de `docs/releases/v1.0.0-rc4.md`.
+2. **Promoção a `v1.0.0`:** decisão do mantenedor, revisando a evidência dos 26 critérios do commit da tag `v1.0.0-rc4`.
 
 ## 6. Regras do projeto que não podem ser quebradas
 
 - A LLM fornece evidências; os **gates determinísticos decidem**. O Judge é auxiliar e nunca sobrepõe um gate nem a revisão humana (ADR-015).
+- A validação **falha fechada**: sem os arquivos declarados pela implementação no workspace, não há aprovação.
 - Os agentes não têm acesso direto ao host. A execução passa pelo Tool Gateway e pelos scanners em container, com rede desligada e workspace read-only (ADR-005 e ADR-007).
 - As integrações com o GitHub são **read-only** e restritas a `GITHUB_ALLOWED_REPOSITORIES`.
-- Payloads de job nunca carregam conteúdo bruto do cliente ou do GitHub; o worker lê os snapshots já redigidos (ADR-016). Jobs não são reexecutados automaticamente.
+- Payloads de job nunca carregam conteúdo bruto do cliente ou do GitHub; o worker lê os snapshots já redigidos (ADR-016). A retomada de jobs é limitada por `WORKER_MAX_ATTEMPTS` e continua do checkpoint (ADR-017).
+- Instruções de agente só mudam com nova versão do prompt e lock atualizado (ADR-018).
