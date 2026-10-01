@@ -7,7 +7,7 @@ O STEH é uma plataforma de engenharia de software assistida por IA orientada a 
 ## Baseline atual
 
 ```text
-v1.0.0-rc4
+v1.0.0
 ```
 
 O código executável na raiz do repositório representa a versão operacional mais recente.
@@ -54,7 +54,8 @@ Validação falha fechada, retomada de jobs por checkpoint,
 prompts versionados e métricas da fila
         |
         v
-MVP 1.0
+v1.0.0 — MVP 1.0
+Promovida a partir do rc4, sem mudança funcional
 ```
 
 ## Releases
@@ -71,7 +72,8 @@ MVP 1.0
 | `v1.0.0-rc1` | MVP Release Candidate hardening and verification | Histórica |
 | `v1.0.0-rc2` | Baseline executável, tipada e validada com evidência reproduzível | Histórica |
 | `v1.0.0-rc3` | Workflow completo pós-RC2, execução assíncrona e 25 critérios de aceite | Histórica |
-| `v1.0.0-rc4` | Validação falha fechada, retomada de jobs, prompts versionados e 26 critérios de aceite | **Baseline** |
+| `v1.0.0-rc4` | Validação falha fechada, retomada de jobs, prompts versionados e 26 critérios de aceite | Histórica |
+| `v1.0.0` | **MVP 1.0** — promovida a partir do rc4, 26 critérios de aceite com evidência | **Baseline** |
 
 As releases não são instaladas sequencialmente. Para executar o estado atual, use diretamente a raiz deste repositório.
 

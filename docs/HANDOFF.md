@@ -1,13 +1,13 @@
 # STEH — Handoff
 
-_Estado em 2026-10-01, preparado no PR de release `v1.0.0-rc4`._
+_Estado em 2026-10-01, preparado no PR de promoção a `v1.0.0` (MVP 1.0)._
 
 ## 1. Onde está o projeto
 
 - **Repositório canônico:** https://github.com/fabioestevam2404/steh-v1.0.0-rc1 (público). Só existe o branch `main`; o trabalho segue `docs/GIT_WORKFLOW.md` (branch curto → PR com CI verde → merge commit → apagar branch).
-- **Versão:** `1.0.0-rc4` (`VERSION`, `app/version.py`, `pyproject.toml`). A tag `v1.0.0-rc4` deve ser criada no commit de merge do PR de release (ver seção 5).
-- **Releases anteriores:** `v1.0.0-rc3` (2026-09-30, workflow completo e execução assíncrona) e `v1.0.0-rc2`. Notas em `docs/releases/`.
-- **O que o RC4 entrega:** validação que falha fechada com workspace vazio, retomada de jobs por checkpoint (ADR-017), prompts versionados com hash na evidência (ADR-018), métricas da fila e os testes que faltavam nos critérios RC-19, RC-23 e RC-24. Detalhes em `docs/releases/v1.0.0-rc4.md`.
+- **Versão:** `1.0.0`, a primeira estável (`VERSION`, `app/version.py`, `pyproject.toml`), promovida a partir do `v1.0.0-rc4` sem mudança funcional. A tag `v1.0.0` deve ser criada no commit de merge do PR de promoção (ver seção 5).
+- **Releases anteriores:** `v1.0.0-rc4` (2026-10-01, evidência 30/30 no run 36855509999, commit `20ba8fc`), `v1.0.0-rc3` e `v1.0.0-rc2`. Notas em `docs/releases/`.
+- **O que o RC4 entregou (base da 1.0):** validação que falha fechada com workspace vazio, retomada de jobs por checkpoint (ADR-017), prompts versionados com hash na evidência (ADR-018), métricas da fila e os testes que faltavam nos critérios RC-19, RC-23 e RC-24. Detalhes em `docs/releases/v1.0.0-rc4.md`.
 - **Contrato da API:** os endpoints que executam agentes respondem `202` e o cliente acompanha por `GET /api/v1/tasks/{task_id}` (desde o RC3). Sem worker rodando, as tarefas ficam em `QUEUED`.
 
 A pasta local `C:\Projetos\Pipelines\steh\` é um **snapshot antigo da Alpha 0.1**, sem histórico em comum com este repositório. Serve só como arquivo e não deve receber desenvolvimento.
@@ -56,17 +56,17 @@ Nenhuma dívida técnica levantada até aqui está em aberto. Limitações aceit
 
 ## 5. Próximo marco
 
-1. **Tag do RC4:** depois do merge do PR de release com CI verde, no commit de merge (confirmar o merge pela API antes de apagar o branch):
+1. **Tag `v1.0.0`:** depois do merge do PR de promoção com CI verde, no commit de merge (confirmar o merge pela API antes de apagar o branch):
 
    ```bash
    git switch main
    git pull --ff-only
-   git tag -a v1.0.0-rc4 -m "STEH v1.0.0-rc4"
-   git push origin v1.0.0-rc4
+   git tag -a v1.0.0 -m "STEH v1.0.0"
+   git push origin v1.0.0
    ```
 
-   Conferir que o `STEH Release Validation` terminou verde e guardou o artefato `release-validation-evidence` (critério RC-16). Opcional: GitHub Release como pre-release com o texto de `docs/releases/v1.0.0-rc4.md`.
-2. **Promoção a `v1.0.0`:** decisão do mantenedor, revisando a evidência dos 26 critérios do commit da tag `v1.0.0-rc4`.
+   O `STEH Release Validation` passa a rodar também em tags estáveis. Conferir que terminou verde e que o artefato `release-validation-evidence` registra `release_version: 1.0.0` e 30/30 gates (regra de promoção). Depois, publicar o GitHub Release como **latest** (não pre-release) com o texto de `docs/releases/v1.0.0.md`.
+2. **Depois da 1.0:** novas capacidades entram como ADRs e versões minor (`1.1.0`, ...), seguindo `docs/VERSIONING.md`.
 
 ## 6. Regras do projeto que não podem ser quebradas
 

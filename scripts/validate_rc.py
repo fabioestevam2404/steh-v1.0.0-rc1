@@ -314,7 +314,9 @@ def main() -> int:
     completed_at = datetime.now(UTC)
 
     evidence = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
+        "release_version": RELEASE_VERSION,
+        # Kept for compatibility with RC evidence consumers.
         "release_candidate": RELEASE_VERSION,
         "status": "PASS" if passed else "FAIL",
         "commit": _git_commit(),

@@ -1,6 +1,6 @@
 # STEH MVP 1.0 RC — Acceptance Criteria
 
-Target release candidate: `1.0.0-rc4`
+Target release: `1.0.0` (promoted from `1.0.0-rc4`)
 
 Previous candidates: `1.0.0-rc2` (criteria RC-01 to RC-16) and `1.0.0-rc3`
 (adds RC-17 to RC-25 for the capabilities merged after RC2). RC4 keeps every
@@ -63,9 +63,13 @@ the commands listed in `scripts/validate_rc.py`.
 
 ## Promotion rule
 
-`1.0.0-rc4` must not be tagged, and no release candidate may be promoted to
-`1.0.0`, unless every criterion above has objective evidence from the exact
-release commit. Documentation statements or results produced by a different
+No release candidate may be tagged, and `1.0.0` may not be tagged, unless every
+criterion above has objective evidence from the exact release commit.
+
+`1.0.0` is promoted from `1.0.0-rc4`, whose release evidence (workflow run
+36855509999, commit `20ba8fc`) passed all 30 gates. The promotion pull request
+changes only the version, the release-workflow trigger and documentation; the
+`v1.0.0` tag must still produce its own passing evidence on its exact commit. Documentation statements or results produced by a different
 commit do not constitute acceptance.
 
 ## Operational prerequisites

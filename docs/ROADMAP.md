@@ -79,7 +79,13 @@ Released in `v1.0.0-rc4`:
   atomicity under database failure
 - acceptance criterion RC-26 (26 criteria, 30 executable gates)
 
-## Next milestone
+## v1.0.0 — MVP 1.0
 
-- promotion decision from `v1.0.0-rc4` to `v1.0.0`, based on the release
-  evidence for all 26 criteria
+Promoted from `v1.0.0-rc4` without functional changes. All 26 acceptance
+criteria have release evidence; the `v1.0.0` tag produces its own evidence on
+its exact commit.
+
+## After 1.0
+
+Planned work is tracked as new ADRs and minor releases (`1.1.0`, ...), following
+`docs/VERSIONING.md`.
