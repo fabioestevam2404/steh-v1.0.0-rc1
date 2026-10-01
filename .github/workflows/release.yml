@@ -2,7 +2,7 @@ name: STEH Release Validation
 
 on:
   push:
-    tags: ["v*-alpha*", "v*-rc*"]
+    tags: ["v*"]  # alpha, release candidate and stable tags (e.g. v1.0.0)
 
 permissions:
   contents: read

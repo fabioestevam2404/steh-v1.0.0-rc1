@@ -4,6 +4,24 @@
 
 ---
 
+## [1.0.0] - 2026-10-01
+
+**MVP 1.0.** Promoted from `1.0.0-rc4` without functional changes. See
+`docs/releases/v1.0.0.md`.
+
+### Changed
+- The release workflow runs on every `v*` tag, including stable tags such as
+  `v1.0.0` (previously only `v*-alpha*` and `v*-rc*`).
+- Validation evidence uses `schema_version` `1.1` and adds `release_version`;
+  `release_candidate` is kept for compatibility.
+
+### Validation
+- `1.0.0-rc4` release evidence: workflow run 36855509999, commit `20ba8fc`,
+  30/30 gates PASS. The `v1.0.0` tag produces its own evidence on its exact
+  commit.
+
+---
+
 ## [1.0.0-rc4] - 2026-10-01
 
 Everything merged after `v1.0.0-rc3` (PRs #22 to #25). See
