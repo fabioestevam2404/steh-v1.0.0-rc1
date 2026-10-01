@@ -38,8 +38,8 @@ Um release candidate é cortado a partir do `main`:
 
    ```bash
    git switch main && git pull --ff-only
-   git tag -a v1.0.0-rc3 -m "STEH v1.0.0-rc3"
-   git push origin v1.0.0-rc3
+   git tag -a v1.0.0-rc4 -m "STEH v1.0.0-rc4"
+   git push origin v1.0.0-rc4
    ```
 
 4. O workflow **STEH Release Validation** (`.github/workflows/release.yml`) roda em tags `v*-alpha*` e `v*-rc*` e guarda a evidência por 90 dias.

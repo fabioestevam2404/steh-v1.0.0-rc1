@@ -67,10 +67,19 @@ Delivered after RC2 and released in `v1.0.0-rc3`:
 - lazily created settings and database engine, injectable readiness
 - acceptance criteria RC-17 to RC-25 with executable gates
 
-## Candidates for the next milestone
+## RC4 — Trust and operational hardening
 
-- ~~queue metrics (depth, job latency)~~ (done after RC3) and checkpoint-based job recovery
-- versioned and hashed agent prompts in the evidence
+Released in `v1.0.0-rc4`:
+
+- validation fails closed when the workspace lacks the implementation
+- bounded job recovery from LangGraph checkpoints (ADR-017)
+- versioned agent prompts with pinned hashes in the evidence (ADR-018)
+- queue and task metrics read from PostgreSQL; HTTP request counter fixed
 - tests for expired-review blocking, negative judge verdicts and task/job
   atomicity under database failure
-- promotion decision from `v1.0.0-rc3` to `v1.0.0`
+- acceptance criterion RC-26 (26 criteria, 30 executable gates)
+
+## Next milestone
+
+- promotion decision from `v1.0.0-rc4` to `v1.0.0`, based on the release
+  evidence for all 26 criteria

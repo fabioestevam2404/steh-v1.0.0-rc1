@@ -2,30 +2,12 @@
 
 ## [Unreleased]
 
-### Added (prompts)
-- Versioned agent prompts (ADR-018): the instructions of the nine LLM agents moved
-  verbatim to `prompts/*.md` (byte-identical to the previous inline text); each
-  agent run records `prompt_id`, `prompt_version` and `prompt_sha256` in its
-  evidence; `prompts/prompts.lock.json` pins every version, checked by
-  `python -m app.services.prompts --check` (gates RC-26 and RC-26B).
+---
 
-### Changed
-- Expired jobs are recovered instead of abandoned (ADR-017): the reaper requeues
-  a job until it has run `WORKER_MAX_ATTEMPTS` times (default `2`), and the
-  retry resumes from the last LangGraph checkpoint, so only the interrupted
-  node runs again. Agent runs left `STARTED` by the dead worker become
-  `ABANDONED`; new audit events `TASK_RECOVERY_SCHEDULED` and `TASK_RECOVERED`.
-  `WORKER_MAX_ATTEMPTS=1` restores the previous fail-closed behavior.
-- Workflow checkpoints are written with `durability="sync"`.
-- Docker Compose shares the implementation workspace between `api` and
-  `worker` through the `steh_workspaces` volume.
+## [1.0.0-rc4] - 2026-10-01
 
-### Added
-- Queue and task metrics on `/metrics`, read from PostgreSQL at scrape time:
-  `steh_tasks{status}`, `steh_task_jobs{kind,status}`,
-  `steh_task_jobs_oldest_queued_age_seconds`, `steh_task_jobs_expired_leases`,
-  `steh_task_job_duration_seconds_sum/_count{kind,status}` and
-  `steh_metrics_database_up`.
+Everything merged after `v1.0.0-rc3` (PRs #22 to #25). See
+`docs/releases/v1.0.0-rc4.md`.
 
 ### Fixed
 - **Validation failed open on an empty workspace.** When the implementation
@@ -33,21 +15,50 @@
   `SKIPPED`, scanners had nothing to scan and validation reported
   `test_passed=true`. A `workspace_integrity` test now fails validation unless
   every file declared in `files_created`/`files_modified` is present, which
-  routes the task to bounded rework instead of `COMPLETED`.
+  routes the task to bounded rework instead of `COMPLETED` (PR #23).
 - `steh_http_requests_total` was never incremented by the application; a
-  middleware now counts every request, labeled by route template.
+  middleware now counts every request, labeled by route template (PR #22).
+
+### Changed
+- Expired jobs are recovered instead of abandoned (ADR-017, PR #24): the reaper
+  requeues a job until it has run `WORKER_MAX_ATTEMPTS` times (default `2`), and
+  the retry resumes from the last LangGraph checkpoint, so only the interrupted
+  node runs again. Agent runs left `STARTED` by the dead worker become
+  `ABANDONED`; new audit events `TASK_RECOVERY_SCHEDULED` and `TASK_RECOVERED`.
+  `WORKER_MAX_ATTEMPTS=1` restores the previous fail-closed behavior.
+- Workflow checkpoints are written with `durability="sync"` (PR #24).
+- Docker Compose shares the implementation workspace between `api` and
+  `worker` through the `steh_workspaces` volume (PR #24).
+
+### Added
+- Versioned agent prompts (ADR-018, PR #25): the instructions of the nine LLM
+  agents moved verbatim to `prompts/*.md` (byte-identical to the previous inline
+  text); each agent run records `prompt_id`, `prompt_version` and
+  `prompt_sha256` in its evidence; `prompts/prompts.lock.json` pins every
+  version, checked by `python -m app.services.prompts --check`.
+- Queue and task metrics on `/metrics`, read from PostgreSQL at scrape time:
+  `steh_tasks{status}`, `steh_task_jobs{kind,status}`,
+  `steh_task_jobs_oldest_queued_age_seconds`, `steh_task_jobs_expired_leases`,
+  `steh_task_job_duration_seconds_sum/_count{kind,status}` and
+  `steh_metrics_database_up` (PR #22).
+- Acceptance criterion RC-26 with gates RC-26 and RC-26B (30 gates in total).
 
 ### Removed
 - `steh_workflows_total`, which was never incremented and could not be
-  correct across processes; use `steh_tasks{status}` instead.
+  correct across processes; use `steh_tasks{status}` instead (PR #22).
 
 ### Tests
 - RC-19: an expired human review blocks the task before test planning and
-  implementation.
+  implementation (PR #22).
 - RC-23: a `FAIL` judge verdict leaves an approved task `COMPLETED` and
-  non-authoritative.
+  non-authoritative (PR #22).
 - RC-24: a task or human-review claim is never persisted when its job cannot
-  be inserted (task/job atomicity under database failure).
+  be inserted, and a worker that dies mid-graph is recovered without
+  re-running finished agents (PRs #22 and #24).
+
+### Validation
+- `scripts/validate_rc.py`: 30 gates, including migration roundtrip, unit,
+  integration and E2E suites, scanner image, prompt lock and ruff/mypy.
 
 ---
 

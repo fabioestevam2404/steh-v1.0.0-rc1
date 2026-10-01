@@ -1,9 +1,11 @@
 # STEH MVP 1.0 RC — Acceptance Criteria
 
-Target release candidate: `1.0.0-rc3`
+Target release candidate: `1.0.0-rc4`
 
-Previous candidate: `1.0.0-rc2` (criteria RC-01 to RC-16). RC3 keeps every RC2
-criterion and adds RC-17 to RC-25 for the capabilities merged after RC2.
+Previous candidates: `1.0.0-rc2` (criteria RC-01 to RC-16) and `1.0.0-rc3`
+(adds RC-17 to RC-25 for the capabilities merged after RC2). RC4 keeps every
+criterion, adds RC-26 (versioned prompts) and strengthens RC-11 (metrics), RC-19,
+RC-23 and RC-24 (job recovery and atomicity) with additional executable evidence.
 
 ## Evidence model
 
@@ -40,7 +42,7 @@ The validator performs a destructive downgrade to Alembic `base`. It requires
 | RC-15 | mypy strict passes | `mypy app` | RC-15 |
 | RC-16 | CI completes for the candidate commit | GitHub Actions result plus JSON artifact | workflow run |
 
-## Post-RC2 criteria (new in RC3)
+## Post-RC2 criteria (RC-17 to RC-25 new in RC3, RC-26 new in RC4)
 
 | ID | Criterion | Executable evidence | Decision |
 |---|---|---|---|
@@ -53,15 +55,15 @@ The validator performs a destructive downgrade to Alembic `base`. It requires
 | RC-23 | The LLM judge is always `authoritative=false`; its rubric coverage and weighted verdict are computed by application code, and a `FAIL` verdict (like a skipped or unavailable judge) leaves an approved task `COMPLETED`, with the result attached only as advisory evidence | judge unit tests, graph tests with a failing verdict and human-review E2E assertions | ADR-015 |
 | RC-24 | Agent execution is asynchronous (`202` + polling); jobs are claimed with `SKIP LOCKED`, leases are owner-only, expired leases are recovered from the last LangGraph checkpoint up to `WORKER_MAX_ATTEMPTS` (only the interrupted node runs again) and then fail closed with `TASK_ABANDONED` (ADR-017), failed jobs record only the error type, and a task or review claim is never persisted without its job (verified by forcing the job insert to fail) | job-queue integration tests and task E2E test | ADR-016 |
 | RC-25 | Structured logs carry `task_id`, `trace_id` and `job_id` across API, worker and agents, and log error types only | logging unit tests and worker log integration test | RC3 hardening |
-| RC-26 | Every LLM agent loads its instructions from a versioned `prompts/*.md` file; `prompts/prompts.lock.json` pins each version's SHA-256 so text cannot change without a version bump; each agent run records `prompt_id`, `prompt_version` and `prompt_sha256` in its evidence | prompt unit tests, lock check and task E2E audit assertion | ADR-018 (after RC3) |
+| RC-26 | Every LLM agent loads its instructions from a versioned `prompts/*.md` file; `prompts/prompts.lock.json` pins each version's SHA-256 so text cannot change without a version bump; each agent run records `prompt_id`, `prompt_version` and `prompt_sha256` in its evidence | prompt unit tests, lock check and task E2E audit assertion | ADR-018 |
 
 Each post-RC2 criterion is a gate with the same id in the JSON artifact
-(`RC-17` to `RC-25`), running exactly the test files listed in
-`scripts/validate_rc.py`.
+(`RC-17` to `RC-26`, plus `RC-26B` for the prompt lock check), running exactly
+the commands listed in `scripts/validate_rc.py`.
 
 ## Promotion rule
 
-`1.0.0-rc3` must not be tagged, and no release candidate may be promoted to
+`1.0.0-rc4` must not be tagged, and no release candidate may be promoted to
 `1.0.0`, unless every criterion above has objective evidence from the exact
 release commit. Documentation statements or results produced by a different
 commit do not constitute acceptance.
