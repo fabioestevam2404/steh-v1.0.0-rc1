@@ -12,6 +12,7 @@ from app.services.audit import (
     fail_agent_run,
     start_agent_run,
 )
+from app.services.prompts import prompt_receipt
 
 logger = logging.getLogger("steh.agents")
 
@@ -52,12 +53,13 @@ class AgentLifecycle:
             try:
                 result = fn()
 
+                receipt = prompt_receipt(agent_name)
                 complete_agent_run(
                     self.db,
                     run,
                     result.result,
                     result.findings,
-                    result.evidence,
+                    [*result.evidence, receipt] if receipt else result.evidence,
                     result.confidence,
                 )
                 logger.info(

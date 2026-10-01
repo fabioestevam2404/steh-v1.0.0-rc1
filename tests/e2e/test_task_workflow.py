@@ -46,6 +46,12 @@ def test_full_task_workflow(drain_jobs: Callable[[], int]) -> None:
         agent_names = {run["agent_name"] for run in audit_payload["agent_runs"]}
 
         assert "requirements_agent" in agent_names
+        requirements_run = next(
+            run for run in audit_payload["agent_runs"] if run["agent_name"] == "requirements_agent"
+        )
+        prompt_evidence = [e for e in requirements_run["evidence"] if e["type"] == "agent_prompt"]
+        assert prompt_evidence[0]["prompt_id"] == "requirements"
+        assert len(prompt_evidence[0]["prompt_sha256"]) == 64
         assert "specification_agent" in agent_names
         assert "architecture_agent" in agent_names
         assert "security_agent" in agent_names

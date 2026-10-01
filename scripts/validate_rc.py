@@ -219,6 +219,22 @@ GATES: list[Gate] = [
             "-q",
         ],
     },
+    {
+        "id": "RC-26",
+        "name": "Agent prompts are versioned, pinned and recorded",
+        "command": [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit/test_prompts.py",
+            "-q",
+        ],
+    },
+    {
+        "id": "RC-26B",
+        "name": "Prompt lock matches prompt files",
+        "command": [sys.executable, "-m", "app.services.prompts", "--check"],
+    },
     {"id": "RC-14", "name": "Ruff passes", "command": [sys.executable, "-m", "ruff", "check", "."]},
     {
         "id": "RC-14B",

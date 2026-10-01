@@ -7,6 +7,7 @@ WORKDIR /app
 COPY pyproject.toml README.md alembic.ini ./
 COPY app ./app
 COPY policies ./policies
+COPY prompts ./prompts
 COPY migrations ./migrations
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
